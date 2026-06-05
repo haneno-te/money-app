@@ -285,40 +285,6 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 
-    // ====== seed 定義 ======
-    const SEED = {
-      accounts: [
-        { name: "GMO（仕事）",  kind: "bank", include_in_total: true },
-        { name: "北洋銀行",     kind: "bank", include_in_total: true },
-        { name: "北海道銀行",   kind: "bank", include_in_total: true },
-        { name: "ゆうちょ",     kind: "bank", include_in_total: true },
-        { name: "現金",         kind: "cash", include_in_total: true },
-      ],
-      cards: [
-        { name: "dカード",        kind: "credit", payment_day: 10,   linked_account_id: null },
-        { name: "楽天カード",     kind: "credit", payment_day: null, linked_account_id: null },
-        { name: "メルペイ",       kind: "credit", payment_day: null, linked_account_id: null },
-        { name: "仕事用デビット", kind: "debit",  payment_day: null, linked_account_id: null },
-      ],
-      categories: [
-        "食費","日用品","遊興","飲酒","交通費","通信費","水道光熱費","家賃","医療","仕事用具","雑費"
-      ].map((name) => ({ name, default_work_ratio: null })),
-    };
-
-    async function seedIfEmpty(colName, items) {
-      const snap = await getDocs(collection(db, colName));
-      if (!snap.empty) return false;
-      for (const item of items) {
-        await addDoc(collection(db, colName), { ...item, created_at: serverTimestamp() });
-      }
-      return true;
-    }
-    async function runSeeds() {
-      await seedIfEmpty("accounts",   SEED.accounts);
-      await seedIfEmpty("cards",      SEED.cards);
-      await seedIfEmpty("categories", SEED.categories);
-    }
-
     // ====== マスタ取得（1回読み）======
     async function loadMasters() {
       const [accSnap, cardSnap, catSnap] = await Promise.all([
@@ -329,7 +295,7 @@
       state.accounts   = accSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       state.cards      = cardSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       state.categories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // 表示順を安定化（name 昇順、ただし現金は最後）
+      // 表示順を安定化（name 昇順、ただし kind:cash は最後）
       state.accounts.sort((a, b) => {
         if (a.kind !== b.kind) return a.kind === "cash" ? 1 : -1;
         return (a.name || "").localeCompare(b.name || "", "ja");
@@ -371,12 +337,12 @@
         opt.dataset.kind = c.kind; // credit | debit
         sel.appendChild(opt);
       }
-      // 口座 + 現金
+      // 口座 + cash 種別
       for (const a of state.accounts) {
         const opt = document.createElement("option");
         if (a.kind === "cash") {
           opt.value = `cash:${a.id}`;
-          opt.textContent = a.name; // 「現金」
+          opt.textContent = a.name; // accounts の name をそのまま表示
         } else {
           opt.value = `account:${a.id}`;
           opt.textContent = `口座:${a.name}`;
@@ -429,7 +395,7 @@
             srcName = c ? `カード:${c.name}` : "カード:?";
           } else if (tx.payment_source_kind === "cash") {
             const a = state.accounts.find(x => x.id === tx.payment_source_id);
-            srcName = a ? a.name : "現金";
+            srcName = a ? a.name : "?";
           } else {
             const a = state.accounts.find(x => x.id === tx.payment_source_id);
             srcName = a ? `口座:${a.name}` : "口座:?";
@@ -798,7 +764,6 @@
     // ====== bootstrap ======
     async function main() {
       try {
-        await runSeeds();
         await loadMasters();
         subscribeTransactions();
         bindEvents();
