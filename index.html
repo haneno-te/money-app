@@ -3,47 +3,251 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>money-app 接続確認</title>
+  <title>money-app</title>
   <style>
-    html, body { height: 100%; margin: 0; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
       font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", sans-serif;
       background: #fafafa;
       color: #222;
-      padding: 24px;
+      line-height: 1.5;
     }
-    #status {
-      font-size: clamp(28px, 6vw, 56px);
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.4;
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-    #status.loading { color: #888; }
-    #status.ok      { color: #1a7f37; }
-    #status.error   { color: #c0392b; }
-    #detail {
-      margin-top: 16px;
-      font-size: 14px;
-      color: #666;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-width: 720px;
+    .tabs { display: flex; max-width: 600px; margin: 0 auto; }
+    .tab {
+      flex: 1; padding: 14px 8px; background: none; border: none;
+      font-size: 16px; cursor: pointer; color: #666;
+      border-bottom: 3px solid transparent;
+    }
+    .tab.active { color: #1a7f37; border-bottom-color: #1a7f37; font-weight: 600; }
+    main { max-width: 600px; margin: 0 auto; padding: 16px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .type-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+    .type-btn {
+      flex: 1; padding: 10px; border: 1px solid #ccc; background: #fff;
+      border-radius: 6px; cursor: pointer; font-size: 15px;
+    }
+    .type-btn.active { background: #1a7f37; color: #fff; border-color: #1a7f37; }
+
+    .form { background: #fff; padding: 16px; border-radius: 8px; border: 1px solid #e0e0e0; }
+    .row { display: block; margin-bottom: 12px; }
+    .row > span { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
+    .row.inline { display: flex; align-items: center; gap: 6px; }
+    .row.inline > span { display: inline; margin-bottom: 0; font-size: 14px; color: #222; }
+    .row input[type="text"],
+    .row input[type="number"],
+    .row input[type="date"],
+    .row input[type="month"],
+    .row select,
+    .row textarea {
+      width: 100%; padding: 10px; font-size: 16px;
+      border: 1px solid #ccc; border-radius: 6px; background: #fff;
+    }
+    .row textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .link {
+      background: none; border: none; color: #1a7f37; cursor: pointer;
+      font-size: 14px; padding: 8px 0; margin: 8px 0;
+    }
+    .actions { display: flex; gap: 8px; margin-top: 16px; }
+    .actions button {
+      flex: 1; padding: 12px; border-radius: 6px; border: 1px solid #ccc;
+      background: #fff; font-size: 16px; cursor: pointer;
+    }
+    .actions button.primary { background: #1a7f37; color: #fff; border-color: #1a7f37; }
+    .actions button.danger  { background: #c0392b; color: #fff; border-color: #c0392b; }
+    .actions button.ok      { background: #6da870; color: #fff; border-color: #6da870; }
+    .actions button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    #list-empty { text-align: center; color: #888; padding: 60px 16px; font-size: 16px; }
+    .tx-row {
+      display: grid;
+      grid-template-columns: auto auto 1fr;
+      grid-template-areas: "date type amount" "detail detail detail";
+      gap: 4px 12px; padding: 12px;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 6px;
+      margin-bottom: 8px; cursor: pointer;
+    }
+    .tx-row:hover { background: #f5f5f5; }
+    .tx-date   { grid-area: date; font-size: 13px; color: #555; }
+    .tx-type   { grid-area: type; font-size: 12px; padding: 2px 8px; border-radius: 4px; align-self: center; }
+    .tx-type.type-expense  { background: #fde2e1; color: #c0392b; }
+    .tx-type.type-income   { background: #d8f0dd; color: #1a7f37; }
+    .tx-type.type-transfer { background: #e0e8f5; color: #2d4a7a; }
+    .tx-amount { grid-area: amount; text-align: right; font-weight: 600; font-size: 16px; }
+    .tx-detail { grid-area: detail; font-size: 13px; color: #555; word-break: break-all; }
+
+    #modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal {
+      background: #fff; padding: 24px; border-radius: 8px;
+      max-width: 360px; width: calc(100% - 32px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    }
+    .modal p { margin: 0 0 20px; font-size: 16px; }
+    .modal-actions { display: flex; gap: 8px; }
+    .modal-actions button {
+      flex: 1; padding: 12px; border-radius: 6px; border: 1px solid #ccc;
+      background: #fff; font-size: 16px; cursor: pointer;
+    }
+    .modal-actions button.danger { background: #c0392b; color: #fff; border-color: #c0392b; }
+
+    .boot-error {
+      color: #c0392b; padding: 16px; font-weight: bold;
+      background: #fde2e1; border: 1px solid #c0392b; border-radius: 6px;
+      margin: 16px; max-width: 600px;
     }
   </style>
 </head>
 <body>
-  <div>
-    <div id="status" class="loading">… 接続確認中 …</div>
-    <div id="detail"></div>
+  <header>
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="input">📥 入力</button>
+      <button type="button" class="tab" data-tab="list">📋 伝票一覧</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== 入力タブ ========== -->
+    <section id="tab-input" class="tab-panel active">
+      <div class="type-bar">
+        <button type="button" class="type-btn active" data-type="expense">支出</button>
+        <button type="button" class="type-btn" data-type="income">収入</button>
+        <button type="button" class="type-btn" data-type="transfer">振替</button>
+      </div>
+
+      <div class="form">
+        <!-- 共通 -->
+        <label class="row">
+          <span>日付</span>
+          <input id="f-date" type="date">
+        </label>
+        <label class="row">
+          <span>金額</span>
+          <input id="f-amount" type="number" inputmode="numeric" min="1" step="1">
+        </label>
+
+        <!-- 支出 -->
+        <div data-type-only="expense">
+          <label class="row">
+            <span>出どころ</span>
+            <select id="f-payment-source"></select>
+          </label>
+          <label class="row">
+            <span>カテゴリ</span>
+            <select id="f-category-exp"></select>
+          </label>
+          <div class="row inline">
+            <input id="f-work-toggle" type="checkbox">
+            <span>仕事</span>
+          </div>
+          <label class="row" id="f-work-ratio-wrap" hidden>
+            <span>按分率（%）</span>
+            <input id="f-work-ratio" type="number" inputmode="numeric" min="1" max="100" step="1" value="100">
+          </label>
+          <div class="row inline">
+            <input id="f-bad-toggle" type="checkbox">
+            <span>BAD</span>
+          </div>
+          <label class="row" id="f-payment-date-wrap" hidden>
+            <span>支払日</span>
+            <input id="f-payment-date" type="date">
+          </label>
+        </div>
+
+        <!-- 収入 -->
+        <div data-type-only="income" hidden>
+          <label class="row">
+            <span>入金先</span>
+            <select id="f-to-account-inc"></select>
+          </label>
+          <label class="row">
+            <span>相手先</span>
+            <input id="f-counterparty" type="text">
+          </label>
+          <label class="row">
+            <span>カテゴリ</span>
+            <select id="f-category-inc"></select>
+          </label>
+        </div>
+
+        <!-- 振替 -->
+        <div data-type-only="transfer" hidden>
+          <label class="row">
+            <span>出金口座</span>
+            <select id="f-from-account"></select>
+          </label>
+          <label class="row">
+            <span>入金口座</span>
+            <select id="f-to-account-tr"></select>
+          </label>
+          <label class="row">
+            <span>手数料</span>
+            <input id="f-fee" type="number" inputmode="numeric" min="0" step="1" value="0">
+          </label>
+        </div>
+
+        <!-- 詳細 -->
+        <button type="button" id="detail-toggle" class="link">詳細 ▼</button>
+        <div id="detail-area" hidden>
+          <label class="row" data-type-only="expense income">
+            <span>対象月</span>
+            <input id="f-target-month" type="month">
+          </label>
+          <label class="row">
+            <span>メモ</span>
+            <textarea id="f-memo" rows="3"></textarea>
+          </label>
+        </div>
+
+        <!-- ボタン -->
+        <div class="actions" id="actions-new">
+          <button type="button" id="btn-save" class="primary">保存</button>
+        </div>
+        <div class="actions" id="actions-edit" hidden>
+          <button type="button" id="btn-update" class="primary">更新</button>
+          <button type="button" id="btn-delete" class="danger">削除</button>
+          <button type="button" id="btn-cancel">キャンセル</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 伝票一覧タブ ========== -->
+    <section id="tab-list" class="tab-panel">
+      <div id="list-empty" hidden>まだ伝票がありません</div>
+      <div id="list"></div>
+    </section>
+  </main>
+
+  <!-- ========== 削除確認モーダル ========== -->
+  <div id="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-text">
+    <div class="modal">
+      <p id="modal-text">この伝票を削除します。よろしいですか？</p>
+      <div class="modal-actions">
+        <button type="button" id="modal-cancel">キャンセル</button>
+        <button type="button" id="modal-delete" class="danger">削除</button>
+      </div>
+    </div>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+    import {
+      getFirestore, collection, doc, getDocs, addDoc, updateDoc, deleteDoc,
+      onSnapshot, query, orderBy, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
+    // ====== 配線（作業#1から流用）======
     const firebaseConfig = {
       apiKey: "AIzaSyA8Bzpf0Dhd9GZE53DrsG_qQ6rHNSV-qcw",
       authDomain: "money-app-badf0.firebaseapp.com",
@@ -52,23 +256,565 @@
       messagingSenderId: "976745439443",
       appId: "1:976745439443:web:59799f7b5346fd3c21f426"
     };
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
 
-    const statusEl = document.getElementById("status");
-    const detailEl = document.getElementById("detail");
+    // ====== state ======
+    const state = {
+      tab: "input",
+      type: "expense",
+      currentEditId: null,
+      accounts: [],
+      cards: [],
+      categories: [],
+      transactions: [],
+      imeComposing: false,
+    };
 
-    try {
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const snap = await getDocs(collection(db, "_connection_check"));
-      statusEl.className = "ok";
-      statusEl.textContent = "✅ Firebase接続OK";
-      detailEl.textContent = `project: ${firebaseConfig.projectId} / read ok (docs: ${snap.size})`;
-    } catch (err) {
-      statusEl.className = "error";
-      statusEl.textContent = "❌ 接続エラー";
-      detailEl.textContent = `${err?.code ?? ""} ${err?.message ?? err}`;
-      console.error(err);
+    // ====== helpers ======
+    const $  = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+    const todayISO = () => {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+    const escapeHtml = (s) => String(s ?? "")
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+    // ====== seed 定義 ======
+    const SEED = {
+      accounts: [
+        { name: "GMO（仕事）",  kind: "bank", include_in_total: true },
+        { name: "北洋銀行",     kind: "bank", include_in_total: true },
+        { name: "北海道銀行",   kind: "bank", include_in_total: true },
+        { name: "ゆうちょ",     kind: "bank", include_in_total: true },
+        { name: "現金",         kind: "cash", include_in_total: true },
+      ],
+      cards: [
+        { name: "dカード",        kind: "credit", payment_day: 10,   linked_account_id: null },
+        { name: "楽天カード",     kind: "credit", payment_day: null, linked_account_id: null },
+        { name: "メルペイ",       kind: "credit", payment_day: null, linked_account_id: null },
+        { name: "仕事用デビット", kind: "debit",  payment_day: null, linked_account_id: null },
+      ],
+      categories: [
+        "食費","日用品","遊興","飲酒","交通費","通信費","水道光熱費","家賃","医療","仕事用具","雑費"
+      ].map((name) => ({ name, default_work_ratio: null })),
+    };
+
+    async function seedIfEmpty(colName, items) {
+      const snap = await getDocs(collection(db, colName));
+      if (!snap.empty) return false;
+      for (const item of items) {
+        await addDoc(collection(db, colName), { ...item, created_at: serverTimestamp() });
+      }
+      return true;
     }
+    async function runSeeds() {
+      await seedIfEmpty("accounts",   SEED.accounts);
+      await seedIfEmpty("cards",      SEED.cards);
+      await seedIfEmpty("categories", SEED.categories);
+    }
+
+    // ====== マスタ取得（1回読み）======
+    async function loadMasters() {
+      const [accSnap, cardSnap, catSnap] = await Promise.all([
+        getDocs(collection(db, "accounts")),
+        getDocs(collection(db, "cards")),
+        getDocs(collection(db, "categories")),
+      ]);
+      state.accounts   = accSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.cards      = cardSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      state.categories = catSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 表示順を安定化（name 昇順、ただし現金は最後）
+      state.accounts.sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === "cash" ? 1 : -1;
+        return (a.name || "").localeCompare(b.name || "", "ja");
+      });
+      state.cards.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
+      state.categories.sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
+      renderAllSelects();
+    }
+
+    // ====== transactions 購読 ======
+    function subscribeTransactions() {
+      const q = query(collection(db, "transactions"), orderBy("created_at", "desc"));
+      onSnapshot(q, (snap) => {
+        state.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderList();
+      }, (err) => {
+        console.error("transactions onSnapshot error:", err);
+      });
+    }
+
+    // ====== セレクト描画 ======
+    function renderAllSelects() {
+      renderPaymentSourceSelect();
+      renderAccountSelect("f-to-account-inc");
+      renderAccountSelect("f-from-account");
+      renderAccountSelect("f-to-account-tr");
+      renderCategorySelect("f-category-exp");
+      renderCategorySelect("f-category-inc");
+    }
+
+    function renderPaymentSourceSelect() {
+      const sel = $("#f-payment-source");
+      sel.innerHTML = "";
+      // カード（先頭）
+      for (const c of state.cards) {
+        const opt = document.createElement("option");
+        opt.value = `card:${c.id}`;
+        opt.textContent = `カード:${c.name}`;
+        opt.dataset.kind = c.kind; // credit | debit
+        sel.appendChild(opt);
+      }
+      // 口座 + 現金
+      for (const a of state.accounts) {
+        const opt = document.createElement("option");
+        if (a.kind === "cash") {
+          opt.value = `cash:${a.id}`;
+          opt.textContent = a.name; // 「現金」
+        } else {
+          opt.value = `account:${a.id}`;
+          opt.textContent = `口座:${a.name}`;
+        }
+        sel.appendChild(opt);
+      }
+    }
+
+    function renderAccountSelect(elId) {
+      const sel = document.getElementById(elId);
+      if (!sel) return;
+      sel.innerHTML = "";
+      for (const a of state.accounts) {
+        const opt = document.createElement("option");
+        opt.value = a.id;
+        opt.textContent = a.kind === "cash" ? a.name : `口座:${a.name}`;
+        sel.appendChild(opt);
+      }
+    }
+
+    function renderCategorySelect(elId) {
+      const sel = document.getElementById(elId);
+      if (!sel) return;
+      sel.innerHTML = "";
+      for (const c of state.categories) {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      }
+    }
+
+    // ====== 一覧描画 ======
+    function renderList() {
+      const root = $("#list");
+      const empty = $("#list-empty");
+      if (state.transactions.length === 0) {
+        root.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      const html = state.transactions.map((tx) => {
+        const typeLabel = tx.type === "expense" ? "支出" : tx.type === "income" ? "収入" : "振替";
+        let detail = "";
+        if (tx.type === "expense") {
+          let srcName = "";
+          if (tx.payment_source_kind === "card") {
+            const c = state.cards.find(x => x.id === tx.payment_source_id);
+            srcName = c ? `カード:${c.name}` : "カード:?";
+          } else if (tx.payment_source_kind === "cash") {
+            const a = state.accounts.find(x => x.id === tx.payment_source_id);
+            srcName = a ? a.name : "現金";
+          } else {
+            const a = state.accounts.find(x => x.id === tx.payment_source_id);
+            srcName = a ? `口座:${a.name}` : "口座:?";
+          }
+          const cat = state.categories.find(c => c.id === tx.category);
+          detail = `${srcName} / ${cat ? cat.name : "?"}`;
+        } else if (tx.type === "income") {
+          const a = state.accounts.find(x => x.id === tx.to_account_id);
+          const cat = state.categories.find(c => c.id === tx.category);
+          detail = `→${a ? a.name : "?"} / ${cat ? cat.name : "?"}`;
+        } else {
+          const from = state.accounts.find(x => x.id === tx.from_account_id);
+          const to   = state.accounts.find(x => x.id === tx.to_account_id);
+          detail = `${from ? from.name : "?"} → ${to ? to.name : "?"}`;
+          if (tx.fee) detail += `（手数料 ¥${Number(tx.fee).toLocaleString()}）`;
+        }
+        const memo = tx.memo ? ` / ${tx.memo.length > 20 ? tx.memo.slice(0, 20) + "…" : tx.memo}` : "";
+        const amt = Number(tx.amount || 0).toLocaleString();
+        const dt  = tx.transaction_date || "";
+        return `
+          <div class="tx-row" data-id="${escapeHtml(tx.id)}">
+            <div class="tx-date">${escapeHtml(dt)}</div>
+            <div class="tx-type type-${escapeHtml(tx.type)}">${escapeHtml(typeLabel)}</div>
+            <div class="tx-amount">¥${escapeHtml(amt)}</div>
+            <div class="tx-detail">${escapeHtml(detail + memo)}</div>
+          </div>
+        `;
+      }).join("");
+      root.innerHTML = html;
+    }
+
+    // ====== タブ／type 切替 ======
+    function switchTab(tab) {
+      state.tab = tab;
+      for (const el of $$(".tab")) el.classList.toggle("active", el.dataset.tab === tab);
+      for (const el of $$(".tab-panel")) el.classList.toggle("active", el.id === `tab-${tab}`);
+    }
+
+    function switchType(type) {
+      state.type = type;
+      for (const el of $$(".type-btn")) el.classList.toggle("active", el.dataset.type === type);
+      for (const el of $$("[data-type-only]")) {
+        const allowed = el.dataset.typeOnly.split(/\s+/);
+        el.hidden = !allowed.includes(type);
+      }
+      updatePaymentDateVisibility();
+      updateWorkRatioVisibility();
+      refreshTransferAccountSelects();
+    }
+
+    function updatePaymentDateVisibility() {
+      const wrap = $("#f-payment-date-wrap");
+      if (state.type !== "expense") { wrap.hidden = true; return; }
+      const sel = $("#f-payment-source");
+      const opt = sel.options[sel.selectedIndex];
+      wrap.hidden = !(opt && opt.dataset.kind === "credit");
+    }
+
+    function updateWorkRatioVisibility() {
+      const wrap = $("#f-work-ratio-wrap");
+      if (state.type !== "expense") { wrap.hidden = true; return; }
+      wrap.hidden = !$("#f-work-toggle").checked;
+    }
+
+    function refreshTransferAccountSelects() {
+      if (state.type !== "transfer") return;
+      const fromId = $("#f-from-account").value;
+      const toSel  = $("#f-to-account-tr");
+      const prevTo = toSel.value;
+      toSel.innerHTML = "";
+      for (const a of state.accounts) {
+        if (a.id === fromId) continue; // 同口座は除外
+        const opt = document.createElement("option");
+        opt.value = a.id;
+        opt.textContent = a.kind === "cash" ? a.name : `口座:${a.name}`;
+        toSel.appendChild(opt);
+      }
+      if (prevTo && prevTo !== fromId) toSel.value = prevTo;
+    }
+
+    // ====== フォーム ======
+    function resetForm() {
+      state.currentEditId = null;
+      $("#f-date").value = todayISO();
+      $("#f-amount").value = "";
+      $("#f-payment-date").value = "";
+      $("#f-target-month").value = "";
+      $("#f-memo").value = "";
+      $("#f-counterparty").value = "";
+      $("#f-fee").value = "0";
+      $("#f-work-toggle").checked = false;
+      $("#f-work-ratio").value = "100";
+      $("#f-bad-toggle").checked = false;
+      $("#detail-area").hidden = true;
+      $("#detail-toggle").textContent = "詳細 ▼";
+      $("#actions-new").hidden = false;
+      $("#actions-edit").hidden = true;
+      // セレクトは先頭に戻す
+      const sels = ["f-payment-source","f-category-exp","f-to-account-inc","f-category-inc","f-from-account","f-to-account-tr"];
+      for (const id of sels) {
+        const el = document.getElementById(id);
+        if (el && el.options.length) el.selectedIndex = 0;
+      }
+      switchType("expense");
+      $("#f-amount").focus();
+    }
+
+    function enterEditMode(tx) {
+      state.currentEditId = tx.id;
+      switchType(tx.type);
+      $("#f-date").value   = tx.transaction_date || todayISO();
+      $("#f-amount").value = tx.amount ?? "";
+      $("#f-memo").value   = tx.memo || "";
+      $("#f-target-month").value = tx.target_month || "";
+
+      if (tx.type === "expense") {
+        const v = `${tx.payment_source_kind}:${tx.payment_source_id}`;
+        const sel = $("#f-payment-source");
+        // value が存在しない（マスタ削除済み等）場合は先頭に
+        const exists = Array.from(sel.options).some(o => o.value === v);
+        sel.value = exists ? v : (sel.options[0]?.value || "");
+        $("#f-category-exp").value = tx.category || "";
+        $("#f-work-toggle").checked = tx.work_ratio != null;
+        $("#f-work-ratio").value    = tx.work_ratio != null ? tx.work_ratio : 100;
+        $("#f-bad-toggle").checked  = !!tx.is_bad;
+        $("#f-payment-date").value  = tx.payment_date || "";
+        updatePaymentDateVisibility();
+        updateWorkRatioVisibility();
+      } else if (tx.type === "income") {
+        $("#f-to-account-inc").value = tx.to_account_id || "";
+        $("#f-counterparty").value   = tx.counterparty || "";
+        $("#f-category-inc").value   = tx.category || "";
+      } else if (tx.type === "transfer") {
+        $("#f-from-account").value = tx.from_account_id || "";
+        refreshTransferAccountSelects();
+        $("#f-to-account-tr").value = tx.to_account_id || "";
+        $("#f-fee").value = tx.fee != null ? tx.fee : 0;
+      }
+
+      // 詳細欄に値があれば開く
+      if ((tx.memo && tx.memo.length) || tx.target_month) {
+        $("#detail-area").hidden = false;
+        $("#detail-toggle").textContent = "詳細 ▲";
+      }
+      $("#actions-new").hidden  = true;
+      $("#actions-edit").hidden = false;
+      switchTab("input");
+    }
+
+    // ====== payload 生成 ======
+    function buildPayload() {
+      const type = state.type;
+      const transaction_date = $("#f-date").value || todayISO();
+      const amount = Number($("#f-amount").value || 0);
+      const memoVal = $("#f-memo").value.trim();
+      const targetMonth = $("#f-target-month").value || null;
+
+      const base = {
+        type,
+        amount,
+        transaction_date,
+        memo: memoVal,
+        updated_at: serverTimestamp(),
+      };
+      if (state.currentEditId == null) base.created_at = serverTimestamp();
+
+      if (type === "expense") {
+        const srcRaw = $("#f-payment-source").value; // "kind:id"
+        const colonIdx = srcRaw.indexOf(":");
+        const kindKey = colonIdx >= 0 ? srcRaw.slice(0, colonIdx) : "";
+        const srcId   = colonIdx >= 0 ? srcRaw.slice(colonIdx + 1) : "";
+        base.payment_source_kind = kindKey;             // "card" | "account" | "cash"
+        base.payment_source_id   = srcId;
+        base.category = $("#f-category-exp").value;
+        base.is_bad   = $("#f-bad-toggle").checked;
+        base.work_ratio = $("#f-work-toggle").checked
+          ? Number($("#f-work-ratio").value || 100)
+          : null;
+        base.target_month = targetMonth;
+        // 支払日の自動補完
+        if (kindKey === "card") {
+          const opt = $("#f-payment-source").options[$("#f-payment-source").selectedIndex];
+          if (opt && opt.dataset.kind === "credit") {
+            base.payment_date = $("#f-payment-date").value || null; // 空欄OK
+          } else {
+            base.payment_date = transaction_date; // debit
+          }
+        } else {
+          base.payment_date = transaction_date;
+        }
+      } else if (type === "income") {
+        base.to_account_id = $("#f-to-account-inc").value;
+        base.counterparty  = $("#f-counterparty").value.trim();
+        base.category      = $("#f-category-inc").value;
+        base.target_month  = targetMonth;
+        base.payment_date  = transaction_date;
+      } else if (type === "transfer") {
+        base.from_account_id = $("#f-from-account").value;
+        base.to_account_id   = $("#f-to-account-tr").value;
+        base.fee             = Number($("#f-fee").value || 0);
+        base.payment_date    = transaction_date;
+        // 振替：category / target_month / counterparty / work_ratio / is_bad は持たない
+      }
+      return base;
+    }
+
+    function validate(p) {
+      if (!p.amount || p.amount <= 0) return "金額を1円以上で入力してください";
+      if (!p.transaction_date)        return "日付を入力してください";
+      if (p.type === "expense") {
+        if (!p.payment_source_id) return "出どころを選択してください";
+        if (!p.category)          return "カテゴリを選択してください";
+        if (p.work_ratio != null && (p.work_ratio < 1 || p.work_ratio > 100))
+          return "按分率は1〜100で入力してください";
+      }
+      if (p.type === "income") {
+        if (!p.to_account_id) return "入金先を選択してください";
+        if (!p.category)      return "カテゴリを選択してください";
+      }
+      if (p.type === "transfer") {
+        if (!p.from_account_id) return "出金口座を選択してください";
+        if (!p.to_account_id)   return "入金口座を選択してください";
+        if (p.from_account_id === p.to_account_id)
+          return "出金口座と入金口座は別の口座を選んでください";
+        if (p.fee < 0) return "手数料は0以上で入力してください";
+      }
+      return null;
+    }
+
+    // ====== 保存 ======
+    async function saveTransaction() {
+      const payload = buildPayload();
+      const err = validate(payload);
+      if (err) { alert(err); return; }
+      const isNew = state.currentEditId == null;
+      const btn   = isNew ? $("#btn-save") : $("#btn-update");
+      btn.disabled = true;
+      try {
+        if (isNew) {
+          await addDoc(collection(db, "transactions"), payload);
+        } else {
+          await updateDoc(doc(db, "transactions", state.currentEditId), payload);
+        }
+        flashSaveOk(btn);
+        resetForm();
+      } catch (e) {
+        console.error(e);
+        alert("保存に失敗しました: " + (e?.message || e));
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function flashSaveOk(btn) {
+      const original = btn.textContent;
+      btn.textContent = "✓ 保存しました";
+      btn.classList.add("ok");
+      setTimeout(() => {
+        btn.textContent = original;
+        btn.classList.remove("ok");
+      }, 1500);
+    }
+
+    // ====== 削除（モーダル）======
+    let modalLastFocus = null;
+    function openConfirmDelete() {
+      modalLastFocus = document.activeElement;
+      $("#modal-overlay").hidden = false;
+      // デフォルトフォーカスはキャンセル
+      requestAnimationFrame(() => $("#modal-cancel").focus());
+    }
+    function closeConfirmDelete() {
+      $("#modal-overlay").hidden = true;
+      if (modalLastFocus && typeof modalLastFocus.focus === "function") {
+        modalLastFocus.focus();
+      }
+    }
+    async function performDelete() {
+      if (state.currentEditId == null) { closeConfirmDelete(); return; }
+      const id = state.currentEditId;
+      try {
+        await deleteDoc(doc(db, "transactions", id));
+        closeConfirmDelete();
+        resetForm();
+      } catch (e) {
+        console.error(e);
+        closeConfirmDelete();
+        alert("削除に失敗しました: " + (e?.message || e));
+      }
+    }
+
+    // ====== イベント ======
+    function bindEvents() {
+      // タブ切替（編集中は黙って破棄＝Q1仮案a）
+      for (const el of $$(".tab")) {
+        el.addEventListener("click", () => {
+          const t = el.dataset.tab;
+          if (state.currentEditId != null && t !== "input") resetForm();
+          switchTab(t);
+        });
+      }
+      // type 切替（編集中は黙って破棄）
+      for (const el of $$(".type-btn")) {
+        el.addEventListener("click", () => {
+          if (state.currentEditId != null) resetForm();
+          switchType(el.dataset.type);
+        });
+      }
+      // 詳細開閉
+      $("#detail-toggle").addEventListener("click", () => {
+        const area = $("#detail-area");
+        area.hidden = !area.hidden;
+        $("#detail-toggle").textContent = area.hidden ? "詳細 ▼" : "詳細 ▲";
+      });
+      // 出どころ変更 → 支払日表示更新
+      $("#f-payment-source").addEventListener("change", updatePaymentDateVisibility);
+      // 仕事トグル → 按分率表示更新
+      $("#f-work-toggle").addEventListener("change", updateWorkRatioVisibility);
+      // 振替・出金口座変更 → 入金口座選択肢更新
+      $("#f-from-account").addEventListener("change", refreshTransferAccountSelects);
+      // 保存／更新／キャンセル／削除
+      $("#btn-save").addEventListener("click", saveTransaction);
+      $("#btn-update").addEventListener("click", saveTransaction);
+      $("#btn-cancel").addEventListener("click", () => { resetForm(); });
+      $("#btn-delete").addEventListener("click", openConfirmDelete);
+      // モーダル：ボタン
+      $("#modal-cancel").addEventListener("click", closeConfirmDelete);
+      $("#modal-delete").addEventListener("click", performDelete);
+      // モーダル：Esc で閉じる、Enter は無効化（仕様 3-5）
+      document.addEventListener("keydown", (e) => {
+        if ($("#modal-overlay").hidden) return;
+        if (e.key === "Escape") { e.preventDefault(); closeConfirmDelete(); return; }
+        if (e.key === "Enter")  { e.preventDefault(); /* 何もしない */ return; }
+      });
+      // モーダル：オーバーレイクリックでキャンセル
+      $("#modal-overlay").addEventListener("click", (e) => {
+        if (e.target === $("#modal-overlay")) closeConfirmDelete();
+      });
+    }
+
+    // ====== 一覧クリック（イベントデリゲーション）======
+    function bindListDelegation() {
+      $("#list").addEventListener("click", (e) => {
+        const row = e.target.closest(".tx-row");
+        if (!row) return;
+        const id = row.dataset.id;
+        const tx = state.transactions.find(t => t.id === id);
+        if (tx) enterEditMode(tx);
+      });
+    }
+
+    // ====== IME / Enter ガード ======
+    function bindIMEGuards() {
+      document.addEventListener("compositionstart", () => { state.imeComposing = true; });
+      document.addEventListener("compositionend",   () => { state.imeComposing = false; });
+      // input 内での Enter は無視（誤保存防止）。textarea は改行を許可
+      document.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        if (state.imeComposing) return;
+        if (e.isComposing || e.keyCode === 229) return;
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT") e.preventDefault();
+      }, true);
+    }
+
+    // ====== bootstrap ======
+    async function main() {
+      try {
+        await runSeeds();
+        await loadMasters();
+        subscribeTransactions();
+        bindEvents();
+        bindListDelegation();
+        bindIMEGuards();
+        resetForm();
+        switchTab("input");
+      } catch (e) {
+        console.error(e);
+        document.body.insertAdjacentHTML(
+          "afterbegin",
+          `<div class="boot-error">起動エラー: ${escapeHtml(e?.message || e)}</div>`
+        );
+      }
+    }
+    main();
   </script>
 </body>
 </html>
