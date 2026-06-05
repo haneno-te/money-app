@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>money-app 接続確認</title>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", sans-serif;
+      background: #fafafa;
+      color: #222;
+      padding: 24px;
+    }
+    #status {
+      font-size: clamp(28px, 6vw, 56px);
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.4;
+    }
+    #status.loading { color: #888; }
+    #status.ok      { color: #1a7f37; }
+    #status.error   { color: #c0392b; }
+    #detail {
+      margin-top: 16px;
+      font-size: 14px;
+      color: #666;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 720px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <div id="status" class="loading">… 接続確認中 …</div>
+    <div id="detail"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA8Bzpf0Dhd9GZE53DrsG_qQ6rHNSV-qcw",
+      authDomain: "money-app-badf0.firebaseapp.com",
+      projectId: "money-app-badf0",
+      storageBucket: "money-app-badf0.firebasestorage.app",
+      messagingSenderId: "976745439443",
+      appId: "1:976745439443:web:59799f7b5346fd3c21f426"
+    };
+
+    const statusEl = document.getElementById("status");
+    const detailEl = document.getElementById("detail");
+
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const snap = await getDocs(collection(db, "_connection_check"));
+      statusEl.className = "ok";
+      statusEl.textContent = "✅ Firebase接続OK";
+      detailEl.textContent = `project: ${firebaseConfig.projectId} / read ok (docs: ${snap.size})`;
+    } catch (err) {
+      statusEl.className = "error";
+      statusEl.textContent = "❌ 接続エラー";
+      detailEl.textContent = `${err?.code ?? ""} ${err?.message ?? err}`;
+      console.error(err);
+    }
+  </script>
+</body>
+</html>
