@@ -377,10 +377,10 @@
         <div class="accordion-body">
           <div class="add-row" data-add data-col="payment_sources" data-kind="card">
             <input type="text" data-add-name placeholder="カード名" maxlength="30">
-            <select data-add-subtype>
-              <option value="credit">credit（引落あり）</option>
-              <option value="debit">debit（即引落）</option>
-            </select>
+            <div class="subtype-radios" style="display:flex;gap:16px;align-items:center;flex-basis:100%;padding:4px 0">
+              <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="add-card-subtype" value="credit" checked> credit（引落あり）</label>
+              <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="add-card-subtype" value="debit"> debit（即引落）</label>
+            </div>
             <input type="number" data-add-payday min="1" max="31" step="1" placeholder="引落日（credit・任意）">
             <select data-add-settlement>
               <option value="">引落先口座（任意）</option>
@@ -1163,10 +1163,10 @@
         html += `
           <div class="row">
             <span>種別</span>
-            <select id="edit-subtype">
-              <option value="credit" ${item.subtype === "credit" ? "selected" : ""}>credit（引落あり）</option>
-              <option value="debit" ${item.subtype === "debit" ? "selected" : ""}>debit（即引落）</option>
-            </select>
+            <div style="display:flex;gap:16px;align-items:center;padding:4px 0">
+              <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="edit-card-subtype" value="credit" ${item.subtype === "credit" ? "checked" : ""}> credit（引落あり）</label>
+              <label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="edit-card-subtype" value="debit" ${item.subtype === "debit" ? "checked" : ""}> debit（即引落）</label>
+            </div>
           </div>
           <div class="row">
             <span>引落日（1〜31・credit時の任意）</span>
@@ -1200,7 +1200,8 @@
         data.default_rate = r === "" ? null : Math.max(1, Math.min(100, Number(r)));
       }
       if (colName === "payment_sources" && item.kind === "card") {
-        data.subtype = $("#edit-subtype").value || null;
+        const sub = document.querySelector('input[name="edit-card-subtype"]:checked')?.value || "credit";
+        data.subtype = sub;
         const pd = $("#edit-payday").value;
         data.payment_day = pd === "" ? null : Math.max(1, Math.min(31, Number(pd)));
         data.settlement_account_id = $("#edit-settlement").value || null;
@@ -1254,15 +1255,16 @@
         data.default_rate = r === "" || r == null ? null : Math.max(1, Math.min(100, Number(r)));
       }
       if (colName === "payment_sources" && kind === "card") {
-        const subtype = addRow.querySelector("[data-add-subtype]")?.value || "credit";
+        const subtype = addRow.querySelector('input[name="add-card-subtype"]:checked')?.value || "credit";
         const pd = addRow.querySelector("[data-add-payday]")?.value;
         const settle = addRow.querySelector("[data-add-settlement]")?.value || null;
-        data.subtype = subtype;
+        data.subtype = subtype;                 // 'credit' | 'debit'
         data.payment_day = pd === "" || pd == null ? null : Math.max(1, Math.min(31, Number(pd)));
         data.settlement_account_id = settle || null;
       }
       if (colName === "payment_sources" && kind === "account") {
         data.include_in_total = true;
+        data.subtype = null;                    // 口座は subtype を持たない（明示 null）
       }
       if (colName === "stores" || colName === "subcategories") {
         data.parent_id = null; // トップレベルとして追加
