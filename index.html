@@ -181,18 +181,6 @@
     }
     .empty-list { color: var(--text-muted); padding: 8px 4px; font-size: 13px; }
 
-    /* ====== BADカテゴリ（labels）チップ：BAD項目はパープル系 ====== */
-    .label-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .label-chip {
-      display: inline-flex; align-items: center; padding: 6px 12px;
-      background: var(--surface-elev); border: 1px solid var(--border); color: var(--text);
-      border-radius: 16px;
-      cursor: pointer; user-select: none; font-size: 13px;
-    }
-    .label-chip.on { background: var(--purple-soft); border-color: var(--accent-purple); color: var(--accent-purple); }
-    .label-chip input { display: none; }
-    .label-empty { color: var(--text-muted); font-size: 13px; }
-
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -285,10 +273,6 @@
           <div class="row inline">
             <input id="f-bad-toggle" type="checkbox">
             <span>BAD</span>
-          </div>
-          <div class="row" id="f-bad-labels-wrap" hidden>
-            <span>BADカテゴリ（複数可）</span>
-            <div id="f-bad-labels" class="label-chips"></div>
           </div>
           <label class="row" id="f-payment-date-wrap" hidden>
             <span>支払日</span>
@@ -429,16 +413,6 @@
         </div>
       </div>
 
-      <div class="accordion" data-acc="labels">
-        <div class="accordion-head" data-acc-head>BADカテゴリ<span class="chev">▼</span></div>
-        <div class="accordion-body">
-          <div class="add-row" data-add data-col="labels">
-            <input type="text" data-add-name placeholder="BADカテゴリ名" maxlength="30">
-            <button type="button" data-add-btn>追加</button>
-          </div>
-          <ul class="master-list" data-list data-col="labels"></ul>
-        </div>
-      </div>
     </section>
   </main>
 
@@ -504,7 +478,7 @@
     const db  = getFirestore(app);
 
     // ====== 定数 ======
-    const MASTER_COLS = ["payment_sources", "categories", "stores", "subcategories", "labels"];
+    const MASTER_COLS = ["payment_sources", "categories", "stores", "subcategories"];
 
     // ====== state ======
     const state = {
@@ -516,13 +490,11 @@
       categories: [],
       stores: [],
       subcategories: [],
-      labels: [],
       // 伝票
       transactions: [],
       // UI
       showHidden: false,
       imeComposing: false,
-      selectedLabelIds: [],   // 伝票編集時の BAD labels
       pendingDelete: null,    // { kind:'tx'|'master', colName, docId, name? }
       pendingEdit: null,      // { colName, doc }
       pendingChildParent: null, // { colName, parentId }
@@ -615,8 +587,6 @@
       refreshSettlementAccountSelect();
       // 入金口座は出金口座次第で組み直す
       refreshTransferAccountSelects();
-      // BAD labels chips
-      renderBadLabelsChips();
     }
 
     // 出どころ＝ payment_sources 全件（kind=account|card 両方）
@@ -749,24 +719,6 @@
         sel.appendChild(opt);
       }
       if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
-    }
-
-    function renderBadLabelsChips() {
-      const root = $("#f-bad-labels");
-      const prevSel = new Set(state.selectedLabelIds);
-      root.innerHTML = "";
-      const items = visible(state.labels);
-      if (items.length === 0) {
-        root.innerHTML = `<span class="label-empty">設定タブで BAD カテゴリを追加してください</span>`;
-        return;
-      }
-      for (const l of items) {
-        const id = `bad-lbl-${escapeHtml(l.id)}`;
-        const wrap = document.createElement("label");
-        wrap.className = "label-chip" + (prevSel.has(l.id) ? " on" : "");
-        wrap.innerHTML = `<input type="checkbox" data-label-id="${escapeHtml(l.id)}" ${prevSel.has(l.id) ? "checked" : ""}>${escapeHtml(l.name)}`;
-        root.appendChild(wrap);
-      }
     }
 
     // 設定タブ：クレジットカード追加欄の引落先口座 select
@@ -1002,7 +954,6 @@
       }
       updatePaymentDateVisibility();
       updateWorkRatioVisibility();
-      updateBadLabelsVisibility();
       refreshTransferAccountSelects();
     }
     function updatePaymentDateVisibility() {
@@ -1027,16 +978,10 @@
       const n = Number(dr);
       return Number.isFinite(n) ? n : null;
     }
-    function updateBadLabelsVisibility() {
-      const wrap = $("#f-bad-labels-wrap");
-      if (state.type !== "expense") { wrap.hidden = true; return; }
-      wrap.hidden = !$("#f-bad-toggle").checked;
-    }
 
     // ====== フォーム ======
     function resetForm() {
       state.currentEditId = null;
-      state.selectedLabelIds = [];
       $("#f-date").value = todayISO();
       $("#f-amount").value = "";
       $("#f-payment-date").value = "";
@@ -1058,13 +1003,11 @@
         if (el && el.options.length) el.selectedIndex = 0;
       }
       switchType("expense");
-      renderBadLabelsChips();
       $("#f-amount").focus();
     }
 
     function enterEditMode(tx) {
       state.currentEditId = tx.id;
-      state.selectedLabelIds = Array.isArray(tx.label_ids) ? [...tx.label_ids] : [];
       switchType(tx.type);
       $("#f-date").value   = tx.transaction_date || todayISO();
       $("#f-amount").value = tx.amount ?? "";
@@ -1084,8 +1027,6 @@
         $("#f-payment-date").value  = tx.payment_date || "";
         updatePaymentDateVisibility();
         updateWorkRatioVisibility();
-        updateBadLabelsVisibility();
-        renderBadLabelsChips();
       } else if (tx.type === "income") {
         $("#f-to-account-inc").value = tx.to_account_id || "";
         $("#f-counterparty").value   = tx.counterparty || "";
@@ -1131,7 +1072,6 @@
         base.subcategory_id = $("#f-subcategory").value || null;   // "" → null（カテゴリなし）
         base.store_id = $("#f-store").value || null;
         base.is_bad   = $("#f-bad-toggle").checked;
-        base.label_ids = $("#f-bad-toggle").checked ? [...state.selectedLabelIds] : [];
         base.work_ratio = $("#f-work-toggle").checked
           ? Number($("#f-work-ratio").value || 0)
           : null;
@@ -1280,8 +1220,6 @@
             <input id="edit-ratio" type="number" inputmode="numeric" min="0" max="100" step="1" value="${item.default_work_ratio == null ? 0 : escapeHtml(item.default_work_ratio)}">
           </div>
         `;
-      } else if (colName === "labels") {
-        title.textContent = "BAD カテゴリを編集";
       } else if (colName === "payment_sources" && item.kind === "account") {
         title.textContent = "口座を編集";
       } else if (colName === "payment_sources" && item.kind === "card") {
@@ -1486,24 +1424,6 @@
           const dr = getSelectedSubcategoryDefaultRatio();
           $("#f-work-ratio").value = dr != null ? dr : 0;
         }
-      });
-      // BAD トグル → labels chips 表示
-      $("#f-bad-toggle").addEventListener("change", () => {
-        updateBadLabelsVisibility();
-      });
-      // BAD labels chips クリック（delegation）
-      $("#f-bad-labels").addEventListener("change", (e) => {
-        const cb = e.target.closest('input[type="checkbox"][data-label-id]');
-        if (!cb) return;
-        const id = cb.dataset.labelId;
-        if (cb.checked) {
-          if (!state.selectedLabelIds.includes(id)) state.selectedLabelIds.push(id);
-        } else {
-          state.selectedLabelIds = state.selectedLabelIds.filter(x => x !== id);
-        }
-        // chip 見た目
-        const chip = cb.closest(".label-chip");
-        if (chip) chip.classList.toggle("on", cb.checked);
       });
       // 振替・出金口座変更
       $("#f-from-account").addEventListener("change", refreshTransferAccountSelects);
