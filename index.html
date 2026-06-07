@@ -181,6 +181,42 @@
     }
     .empty-list { color: var(--text-muted); padding: 8px 4px; font-size: 13px; }
 
+    /* ====== 口座タブ ====== */
+    .accounts-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .accounts-header .total-label {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .accounts-header .total-amount {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .accounts-header .total-amount.pos { color: var(--primary); }
+    .accounts-header .total-amount.neg { color: var(--expense); }
+    .acc-row {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+    }
+    .acc-name { color: var(--text); font-size: 15px; }
+    .acc-meta { color: var(--text-dim); font-size: 11px; margin-left: 6px; }
+    .acc-bal  { font-weight: 700; font-size: 18px; color: var(--text); }
+    .acc-bal.pos { color: var(--primary); }
+    .acc-bal.neg { color: var(--expense); }
+    .accounts-empty { text-align: center; color: var(--text-muted); padding: 60px 16px; font-size: 16px; }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -224,6 +260,7 @@
     <div class="tabs">
       <button type="button" class="tab active" data-tab="input">📥 入力</button>
       <button type="button" class="tab" data-tab="list">📋 伝票一覧</button>
+      <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
       <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
     </div>
   </header>
@@ -343,6 +380,15 @@
       <div id="list"></div>
     </section>
 
+    <!-- ========== 口座タブ（表示専用ビュー）========== -->
+    <section id="tab-accounts" class="tab-panel">
+      <div class="accounts-header">
+        <div class="total-label">口座総額</div>
+        <div id="accounts-total" class="total-amount">¥0</div>
+      </div>
+      <div id="accounts-list"></div>
+    </section>
+
     <!-- ========== 設定タブ ========== -->
     <section id="tab-settings" class="tab-panel">
       <div class="settings-toggle">
@@ -388,6 +434,7 @@
         <div class="accordion-body">
           <div class="add-row" data-add data-col="payment_sources" data-kind="account">
             <input type="text" data-add-name placeholder="口座名" maxlength="30">
+            <input type="number" data-add-initial inputmode="numeric" step="1" placeholder="初期残高（円・任意）">
             <button type="button" data-add-btn>追加</button>
           </div>
           <ul class="master-list" data-list data-col="payment_sources" data-kind="account"></ul>
@@ -557,6 +604,8 @@
           state[colName] = snap.docs.map(d => ({ id: d.id, ...d.data() }));
           renderAllSelects();
           renderSettings();
+          // payment_sources 変更時に口座タブの残高に影響しうるため都度再描画
+          if (colName === "payment_sources") renderAccountsTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -569,6 +618,7 @@
       onSnapshot(q, (snap) => {
         state.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderList();
+        renderAccountsTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -761,6 +811,72 @@
       if (prevTo && prevTo !== fromId && Array.from(toSel.options).some(o => o.value === prevTo)) {
         toSel.value = prevTo;
       }
+    }
+
+    // ====== 口座残高計算（共通関数・他タブからも使える形）======
+    // 直接の支出/収入/振替は日付フィルタなしで即時反映。
+    // カード支出だけは payment_date <= 今日 になった時点で、カードの
+    // settlement_account_id 口座から amount を差し引く（クレジット・デビット同ルール）。
+    // payment_date が空・未来、または settlement_account_id が null のカード支出は反映しない。
+    function computeAccountBalance(accountId) {
+      const acct = state.payment_sources.find(s => s.id === accountId);
+      if (!acct) return 0;
+      let balance = Number(acct.initial_balance || 0);
+      const today = todayISO();
+      for (const tx of state.transactions) {
+        if (tx.type === "expense") {
+          const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
+          if (!src) continue;
+          if (src.kind === "account") {
+            if (tx.payment_source_id === accountId) {
+              balance -= Number(tx.amount || 0);
+            }
+          } else if (src.kind === "card") {
+            // カード引き落とし：settlement_account_id 口座から payment_date 到来時に減算
+            if (src.settlement_account_id === accountId
+                && tx.payment_date
+                && tx.payment_date <= today) {
+              balance -= Number(tx.amount || 0);
+            }
+          }
+        } else if (tx.type === "income") {
+          if (tx.to_account_id === accountId) balance += Number(tx.amount || 0);
+        } else if (tx.type === "transfer") {
+          if (tx.from_account_id === accountId) balance -= Number(tx.amount || 0) + Number(tx.fee || 0);
+          if (tx.to_account_id   === accountId) balance += Number(tx.amount || 0);
+        }
+      }
+      return balance;
+    }
+
+    // ====== 口座タブ描画（表示専用ビュー）======
+    function renderAccountsTab() {
+      const root = $("#accounts-list");
+      const totalEl = $("#accounts-total");
+      if (!root || !totalEl) return;
+      const accounts = visible(state.payment_sources).filter(s => s.kind === "account");
+      if (accounts.length === 0) {
+        root.innerHTML = `<div class="accounts-empty">設定タブで口座を追加してください</div>`;
+        totalEl.textContent = "¥0";
+        totalEl.className = "total-amount";
+        return;
+      }
+      let total = 0;
+      const rows = accounts.map(acc => {
+        const bal = computeAccountBalance(acc.id);
+        if (acc.include_in_total !== false) total += bal;
+        const signCls = bal > 0 ? "pos" : bal < 0 ? "neg" : "";
+        const exclMeta = acc.include_in_total === false ? '<span class="acc-meta">（総額除外）</span>' : "";
+        return `
+          <div class="acc-row">
+            <div class="acc-name">${escapeHtml(acc.name)}${exclMeta}</div>
+            <div class="acc-bal ${signCls}">¥${escapeHtml(bal.toLocaleString())}</div>
+          </div>
+        `;
+      }).join("");
+      root.innerHTML = rows;
+      totalEl.textContent = "¥" + total.toLocaleString();
+      totalEl.className = "total-amount" + (total > 0 ? " pos" : total < 0 ? " neg" : "");
     }
 
     // ====== 一覧描画 ======
@@ -1222,6 +1338,16 @@
         `;
       } else if (colName === "payment_sources" && item.kind === "account") {
         title.textContent = "口座を編集";
+        html += `
+          <div class="row">
+            <span>初期残高（円）</span>
+            <input id="edit-initial-balance" type="number" inputmode="numeric" step="1" value="${item.initial_balance == null ? 0 : escapeHtml(item.initial_balance)}">
+          </div>
+          <div class="row inline">
+            <input id="edit-include-total" type="checkbox" ${item.include_in_total !== false ? "checked" : ""}>
+            <span>口座総額に含める</span>
+          </div>
+        `;
       } else if (colName === "payment_sources" && item.kind === "card") {
         title.textContent = "カードを編集";
         const accs = visible(state.payment_sources).filter(s => s.kind === "account");
@@ -1273,6 +1399,11 @@
         const pd = $("#edit-payday").value;
         data.payment_day = pd === "" ? null : Math.max(1, Math.min(31, Number(pd)));
         data.settlement_account_id = $("#edit-settlement").value || null;
+      }
+      if (colName === "payment_sources" && item.kind === "account") {
+        data.include_in_total = $("#edit-include-total").checked;
+        const ib = $("#edit-initial-balance").value;
+        data.initial_balance = (ib === "" || ib == null) ? 0 : Number(ib);
       }
       try {
         await saveMaster(colName, data, item.id);
@@ -1337,6 +1468,8 @@
       if (colName === "payment_sources" && kind === "account") {
         data.include_in_total = true;
         data.subtype = null;                    // 口座は subtype を持たない（明示 null）
+        const ib = addRow.querySelector("[data-add-initial]")?.value;
+        data.initial_balance = (ib === "" || ib == null) ? 0 : Number(ib);
       }
       if (colName === "stores" || colName === "subcategories") {
         data.parent_id = null; // トップレベルとして追加
