@@ -267,8 +267,8 @@
             <select id="f-payment-source"></select>
           </label>
           <label class="row">
-            <span>カテゴリ</span>
-            <select id="f-category-exp"></select>
+            <span>カテゴリ（細目）</span>
+            <select id="f-subcategory"></select>
           </label>
           <label class="row">
             <span>店・場所</span>
@@ -279,8 +279,8 @@
             <span>仕事</span>
           </div>
           <label class="row" id="f-work-ratio-wrap" hidden>
-            <span>按分率（%）</span>
-            <input id="f-work-ratio" type="number" inputmode="numeric" min="1" max="100" step="1" value="100">
+            <span>按分率（%・0〜100）</span>
+            <input id="f-work-ratio" type="number" inputmode="numeric" min="0" max="100" step="1" value="0">
           </label>
           <div class="row inline">
             <input id="f-bad-toggle" type="checkbox">
@@ -366,15 +366,14 @@
         <label for="show-hidden">非表示項目を表示する</label>
       </div>
 
-      <div class="accordion" data-acc="cat-exp">
-        <div class="accordion-head" data-acc-head>費目（支出）<span class="chev">▼</span></div>
+      <div class="accordion" data-acc="expense-tree">
+        <div class="accordion-head" data-acc-head>支出カテゴリ（親＋細目）<span class="chev">▼</span></div>
         <div class="accordion-body">
           <div class="add-row" data-add data-col="categories" data-kind="expense">
-            <input type="text" data-add-name placeholder="費目名" maxlength="30">
-            <input type="number" data-add-rate min="1" max="100" step="1" placeholder="按分初期率（任意・%）">
+            <input type="text" data-add-name placeholder="カテゴリ名（例：食費）" maxlength="30">
             <button type="button" data-add-btn>追加</button>
           </div>
-          <ul class="master-list" data-list data-col="categories" data-kind="expense"></ul>
+          <ul class="master-list" data-list data-col="categories" data-kind="expense" data-expense-tree></ul>
         </div>
       </div>
 
@@ -397,17 +396,6 @@
             <button type="button" data-add-btn>追加</button>
           </div>
           <ul class="master-list" data-list data-col="stores"></ul>
-        </div>
-      </div>
-
-      <div class="accordion" data-acc="subcategories">
-        <div class="accordion-head" data-acc-head>内訳・細目<span class="chev">▼</span></div>
-        <div class="accordion-body">
-          <div class="add-row" data-add data-col="subcategories">
-            <input type="text" data-add-name placeholder="内訳名" maxlength="30">
-            <button type="button" data-add-btn>追加</button>
-          </div>
-          <ul class="master-list" data-list data-col="subcategories"></ul>
         </div>
       </div>
 
@@ -477,13 +465,17 @@
     </div>
   </div>
 
-  <!-- ========== 子追加モーダル（stores / subcategories）========== -->
+  <!-- ========== 子追加モーダル（stores の子 / 細目）========== -->
   <div id="child-overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="child-title">
     <div class="modal">
       <h3 id="child-title">子を追加</h3>
       <div class="row">
         <span>名前</span>
         <input id="child-name" type="text" maxlength="30">
+      </div>
+      <div class="row" id="child-ratio-wrap" hidden>
+        <span>按分初期率（%・0〜100）</span>
+        <input id="child-ratio" type="number" inputmode="numeric" min="0" max="100" step="1" value="0">
       </div>
       <div class="modal-actions">
         <button type="button" id="child-cancel">キャンセル</button>
@@ -616,7 +608,7 @@
       renderAccountOnlySelect("f-to-account-inc");
       renderAccountOnlySelect("f-from-account");
       renderAccountOnlySelect("f-to-account-tr");
-      renderCategorySelect("f-category-exp", "expense");
+      renderSubcategorySelect("f-subcategory");
       renderCategorySelect("f-category-inc", "income");
       renderStoreSelect("f-store");
       // クレジット引落先口座の select は設定タブの追加欄にもあるので更新
@@ -673,7 +665,7 @@
       if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
     }
 
-    // カテゴリ：先頭に「── カテゴリなし ──」value="" を置く（Q-C）
+    // カテゴリ（収入のみ）：先頭に「── カテゴリなし ──」value="" を置く
     function renderCategorySelect(elId, kind) {
       const sel = document.getElementById(elId);
       if (!sel) return;
@@ -686,10 +678,45 @@
       for (const c of items) {
         const opt = document.createElement("option");
         opt.value = c.id; opt.textContent = c.name;
-        opt.dataset.defaultRate = c.default_rate == null ? "" : String(c.default_rate);
         sel.appendChild(opt);
       }
       if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+    }
+
+    // 支出細目（subcategory）：親 category ごとに optgroup でグルーピング
+    // option の value=subcategory.id、data-default-ratio=子の default_work_ratio
+    function renderSubcategorySelect(elId) {
+      const sel = document.getElementById(elId);
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = "";
+      const noneOpt = document.createElement("option");
+      noneOpt.value = ""; noneOpt.textContent = "── カテゴリなし ──";
+      sel.appendChild(noneOpt);
+      const cats = visible(state.categories).filter(c => c.kind === "expense");
+      const subs = visible(state.subcategories);
+      for (const cat of cats) {
+        const group = document.createElement("optgroup");
+        group.label = cat.name;
+        const children = subs.filter(s => s.parent_id === cat.id);
+        for (const child of children) {
+          const opt = document.createElement("option");
+          opt.value = child.id;
+          opt.textContent = child.name;
+          opt.dataset.defaultRatio = child.default_work_ratio == null ? "" : String(child.default_work_ratio);
+          group.appendChild(opt);
+        }
+        if (children.length === 0) {
+          const opt = document.createElement("option");
+          opt.disabled = true;
+          opt.textContent = "（細目なし）";
+          group.appendChild(opt);
+        }
+        sel.appendChild(group);
+      }
+      if (prev && Array.from(sel.querySelectorAll("option")).some(o => o.value === prev)) {
+        sel.value = prev;
+      }
     }
 
     // 店・場所：先頭に「── 店なし ──」、入れ子は字下げで表示
@@ -800,8 +827,18 @@
         if (tx.type === "expense") {
           const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
           const srcName = src ? (src.kind === "card" ? `カード:${src.name}` : `口座:${src.name}`) : "?";
-          const cat = state.categories.find(c => c.id === tx.category);
-          const catName = tx.category ? (cat ? cat.name : "?") : "カテゴリなし";
+          let catName;
+          if (tx.subcategory_id) {
+            const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+            if (sub) {
+              const parent = state.categories.find(c => c.id === sub.parent_id);
+              catName = parent ? `${parent.name} > ${sub.name}` : sub.name;
+            } else {
+              catName = "?";
+            }
+          } else {
+            catName = "カテゴリなし";
+          }
           const store = state.stores.find(s => s.id === tx.store_id);
           const storePart = store ? ` @${store.name}` : "";
           detail = `${srcName} / ${catName}${storePart}`;
@@ -836,10 +873,14 @@
     // ====== 設定タブ描画 ======
     function renderSettings() {
       const showHidden = state.showHidden;
-      // 各 accordion-list を再描画
       for (const list of $$("[data-list]")) {
         const colName = list.dataset.col;
         const kindFilter = list.dataset.kind || null;
+        // 支出カテゴリは expense-tree として親+子（subcategories）を一括描画
+        if (list.hasAttribute("data-expense-tree")) {
+          list.innerHTML = renderExpenseTreeHTML();
+          continue;
+        }
         let items = state[colName] || [];
         if (kindFilter) items = items.filter(x => x.kind === kindFilter);
         if (!showHidden) items = items.filter(x => !x.hidden);
@@ -848,6 +889,35 @@
       }
       // クレジットカード追加欄の引落先 select を更新
       refreshSettlementAccountSelect();
+    }
+
+    // 支出カテゴリ：親=categories(kind=expense)、子=subcategories where parent_id=parent.id
+    function renderExpenseTreeHTML() {
+      const showHidden = state.showHidden;
+      let cats = state.categories.filter(c => c.kind === "expense");
+      if (!showHidden) cats = cats.filter(c => !c.hidden);
+      cats = [...cats].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      if (cats.length === 0) return `<li class="empty-list">まだ親カテゴリがありません</li>`;
+      let html = "";
+      const allSubs = state.subcategories;
+      for (const cat of cats) {
+        let children = allSubs.filter(s => s.parent_id === cat.id);
+        if (!showHidden) children = children.filter(c => !c.hidden);
+        children = [...children].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        html += renderRowHTML("categories", cat, cats, false, children.length);
+        for (const child of children) {
+          html += renderRowHTML("subcategories", child, children, true, 0);
+        }
+        html += `<button class="child-add-btn" data-child-add data-col="subcategories" data-parent="${escapeHtml(cat.id)}" data-needs-ratio>＋ 細目を追加</button>`;
+      }
+      // 親が存在しない・非表示の subcategories（孤児）も末尾に
+      const parentIds = new Set(state.categories.filter(c => c.kind === "expense").map(c => c.id));
+      let orphans = allSubs.filter(s => s.parent_id && !parentIds.has(s.parent_id));
+      if (!showHidden) orphans = orphans.filter(c => !c.hidden);
+      for (const o of orphans) {
+        html += renderRowHTML("subcategories", o, orphans, true, 0);
+      }
+      return html;
     }
 
     function renderMasterListHTML(colName, items, kindFilter) {
@@ -901,8 +971,8 @@
         if (item.subtype) parts.push(item.subtype);
         if (item.payment_day) parts.push(`${item.payment_day}日引落`);
         if (parts.length) meta = `<span class="master-meta">${escapeHtml(parts.join(" / "))}</span>`;
-      } else if (colName === "categories" && item.kind === "expense" && item.default_rate != null) {
-        meta = `<span class="master-meta">按分${escapeHtml(item.default_rate)}%</span>`;
+      } else if (colName === "subcategories" && item.default_work_ratio != null) {
+        meta = `<span class="master-meta">按分初期${escapeHtml(item.default_work_ratio)}%</span>`;
       }
       return `
         <li class="master-item${hiddenCls}${nestCls}" data-id="${escapeHtml(item.id)}" data-col="${escapeHtml(colName)}">
@@ -947,6 +1017,16 @@
       if (state.type !== "expense") { wrap.hidden = true; return; }
       wrap.hidden = !$("#f-work-toggle").checked;
     }
+    // 選択中の細目（subcategory）の default_work_ratio を返す（option の data-default-ratio）
+    function getSelectedSubcategoryDefaultRatio() {
+      const sel = $("#f-subcategory");
+      const opt = sel && sel.options[sel.selectedIndex];
+      if (!opt) return null;
+      const dr = opt.dataset.defaultRatio;
+      if (dr === "" || dr == null) return null;
+      const n = Number(dr);
+      return Number.isFinite(n) ? n : null;
+    }
     function updateBadLabelsVisibility() {
       const wrap = $("#f-bad-labels-wrap");
       if (state.type !== "expense") { wrap.hidden = true; return; }
@@ -965,14 +1045,14 @@
       $("#f-counterparty").value = "";
       $("#f-fee").value = "0";
       $("#f-work-toggle").checked = false;
-      $("#f-work-ratio").value = "100";
+      $("#f-work-ratio").value = "0";
       $("#f-bad-toggle").checked = false;
       $("#detail-area").hidden = true;
       $("#detail-toggle").textContent = "詳細 ▼";
       $("#actions-new").hidden = false;
       $("#actions-edit").hidden = true;
       // select は先頭に
-      for (const id of ["f-payment-source","f-category-exp","f-category-inc","f-store",
+      for (const id of ["f-payment-source","f-subcategory","f-category-inc","f-store",
                         "f-to-account-inc","f-from-account","f-to-account-tr"]) {
         const el = document.getElementById(id);
         if (el && el.options.length) el.selectedIndex = 0;
@@ -996,10 +1076,10 @@
         if (tx.payment_source_id && Array.from(sel.options).some(o => o.value === tx.payment_source_id)) {
           sel.value = tx.payment_source_id;
         }
-        $("#f-category-exp").value = tx.category || "";
+        $("#f-subcategory").value = tx.subcategory_id || "";
         $("#f-store").value = tx.store_id || "";
         $("#f-work-toggle").checked = tx.work_ratio != null;
-        $("#f-work-ratio").value    = tx.work_ratio != null ? tx.work_ratio : 100;
+        $("#f-work-ratio").value    = tx.work_ratio != null ? tx.work_ratio : 0;
         $("#f-bad-toggle").checked  = !!tx.is_bad;
         $("#f-payment-date").value  = tx.payment_date || "";
         updatePaymentDateVisibility();
@@ -1048,12 +1128,12 @@
       if (type === "expense") {
         const srcId = $("#f-payment-source").value || null;
         base.payment_source_id = srcId;
-        base.category = $("#f-category-exp").value || null;   // "" → null（カテゴリなし）
+        base.subcategory_id = $("#f-subcategory").value || null;   // "" → null（カテゴリなし）
         base.store_id = $("#f-store").value || null;
         base.is_bad   = $("#f-bad-toggle").checked;
         base.label_ids = $("#f-bad-toggle").checked ? [...state.selectedLabelIds] : [];
         base.work_ratio = $("#f-work-toggle").checked
-          ? Number($("#f-work-ratio").value || 100)
+          ? Number($("#f-work-ratio").value || 0)
           : null;
         base.target_month = targetMonth;
         // 支払日：出どころが kind=card かつ subtype=credit のときフォームの値
@@ -1088,8 +1168,8 @@
       if (p.type === "expense") {
         if (allSrcCount === 0) return "設定タブで口座またはカードを追加してください";
         if (!p.payment_source_id) return "出どころを選択してください";
-        if (p.work_ratio != null && (p.work_ratio < 1 || p.work_ratio > 100))
-          return "按分率は1〜100で入力してください";
+        if (p.work_ratio != null && (p.work_ratio < 0 || p.work_ratio > 100))
+          return "按分率は0〜100で入力してください";
       }
       if (p.type === "income") {
         if (accCount === 0) return "設定タブで入金先の口座を追加してください";
@@ -1187,19 +1267,19 @@
         </div>
       `;
       if (colName === "categories" && item.kind === "expense") {
-        title.textContent = "費目を編集";
-        html += `
-          <div class="row">
-            <span>按分初期率（%・任意）</span>
-            <input id="edit-rate" type="number" min="1" max="100" step="1" value="${item.default_rate == null ? "" : escapeHtml(item.default_rate)}">
-          </div>
-        `;
+        title.textContent = "支出カテゴリ（親）を編集";
       } else if (colName === "categories" && item.kind === "income") {
         title.textContent = "収入項目を編集";
       } else if (colName === "stores") {
         title.textContent = "店・場所を編集";
       } else if (colName === "subcategories") {
-        title.textContent = "内訳を編集";
+        title.textContent = "細目を編集";
+        html += `
+          <div class="row">
+            <span>按分初期率（%・0〜100）</span>
+            <input id="edit-ratio" type="number" inputmode="numeric" min="0" max="100" step="1" value="${item.default_work_ratio == null ? 0 : escapeHtml(item.default_work_ratio)}">
+          </div>
+        `;
       } else if (colName === "labels") {
         title.textContent = "BAD カテゴリを編集";
       } else if (colName === "payment_sources" && item.kind === "account") {
@@ -1245,9 +1325,9 @@
       const name = $("#edit-name").value.trim();
       if (!name) { alert("名前を入力してください"); return; }
       const data = { name, hidden: $("#edit-hidden").checked };
-      if (colName === "categories" && item.kind === "expense") {
-        const r = $("#edit-rate").value;
-        data.default_rate = r === "" ? null : Math.max(1, Math.min(100, Number(r)));
+      if (colName === "subcategories") {
+        const r = $("#edit-ratio").value;
+        data.default_work_ratio = r === "" || r == null ? 0 : Math.max(0, Math.min(100, Number(r)));
       }
       if (colName === "payment_sources" && item.kind === "card") {
         const sub = document.querySelector('input[name="edit-card-subtype"]:checked')?.value || "credit";
@@ -1265,10 +1345,14 @@
       }
     }
 
-    // ====== 子追加モーダル（stores / subcategories）======
-    function openChildModal(colName, parentId) {
-      state.pendingChildParent = { colName, parentId };
+    // ====== 子追加モーダル（stores 子 / 細目）======
+    function openChildModal(colName, parentId, opts) {
+      const needsRatio = !!(opts && opts.needsRatio);
+      state.pendingChildParent = { colName, parentId, needsRatio };
       $("#child-name").value = "";
+      $("#child-ratio").value = "0";
+      $("#child-ratio-wrap").hidden = !needsRatio;
+      $("#child-title").textContent = needsRatio ? "細目を追加" : "子を追加";
       $("#child-overlay").hidden = false;
       requestAnimationFrame(() => $("#child-name").focus());
     }
@@ -1281,8 +1365,13 @@
       if (!pc) { closeChildModal(); return; }
       const name = $("#child-name").value.trim();
       if (!name) { alert("名前を入力してください"); return; }
+      const data = { name, parent_id: pc.parentId };
+      if (pc.needsRatio) {
+        const r = $("#child-ratio").value;
+        data.default_work_ratio = r === "" || r == null ? 0 : Math.max(0, Math.min(100, Number(r)));
+      }
       try {
-        await saveMaster(pc.colName, { name, parent_id: pc.parentId });
+        await saveMaster(pc.colName, data);
         closeChildModal();
       } catch (e) {
         console.error(e);
@@ -1299,11 +1388,6 @@
       if (!name) { alert("名前を入力してください"); nameEl?.focus(); return; }
       const data = { name };
       if (kind) data.kind = kind;
-      if (colName === "categories" && kind === "expense") {
-        const rateEl = addRow.querySelector("[data-add-rate]");
-        const r = rateEl?.value;
-        data.default_rate = r === "" || r == null ? null : Math.max(1, Math.min(100, Number(r)));
-      }
       if (colName === "payment_sources" && kind === "card") {
         const subtype = addRow.querySelector('input[name="add-card-subtype"]:checked')?.value || "credit";
         const pd = addRow.querySelector("[data-add-payday]")?.value;
@@ -1388,23 +1472,19 @@
       });
       // 出どころ変更 → 支払日表示
       $("#f-payment-source").addEventListener("change", updatePaymentDateVisibility);
-      // 仕事トグル → 按分率表示・カテゴリのデフォルト率を反映
+      // 仕事トグル → 按分率欄の表示と、選択中の細目の default_work_ratio をプリフィル
       $("#f-work-toggle").addEventListener("change", () => {
         updateWorkRatioVisibility();
         if ($("#f-work-toggle").checked) {
-          // カテゴリの default_rate があれば適用、なければ 100
-          const catSel = $("#f-category-exp");
-          const opt = catSel.options[catSel.selectedIndex];
-          const dr = opt && opt.dataset.defaultRate ? Number(opt.dataset.defaultRate) : null;
-          $("#f-work-ratio").value = dr || 100;
+          const dr = getSelectedSubcategoryDefaultRatio();
+          $("#f-work-ratio").value = dr != null ? dr : 0;
         }
       });
-      // カテゴリ変更 → 仕事ONなら default_rate 反映
-      $("#f-category-exp").addEventListener("change", () => {
+      // 細目変更 → 仕事ON 中なら default_work_ratio をプリフィル
+      $("#f-subcategory").addEventListener("change", () => {
         if ($("#f-work-toggle").checked) {
-          const opt = $("#f-category-exp").options[$("#f-category-exp").selectedIndex];
-          const dr = opt && opt.dataset.defaultRate ? Number(opt.dataset.defaultRate) : null;
-          if (dr) $("#f-work-ratio").value = dr;
+          const dr = getSelectedSubcategoryDefaultRatio();
+          $("#f-work-ratio").value = dr != null ? dr : 0;
         }
       });
       // BAD トグル → labels chips 表示
@@ -1500,7 +1580,11 @@
         body.addEventListener("click", (e) => {
           const btn = e.target.closest("button[data-child-add]");
           if (!btn) return;
-          openChildModal(btn.dataset.col, btn.dataset.parent);
+          openChildModal(
+            btn.dataset.col,
+            btn.dataset.parent,
+            { needsRatio: btn.hasAttribute("data-needs-ratio") }
+          );
         });
       }
     }
