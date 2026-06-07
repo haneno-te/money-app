@@ -121,6 +121,9 @@
     .tx-type.type-income   { background: var(--income-soft);  color: var(--income); }
     .tx-type.type-transfer { background: var(--primary-soft); color: var(--primary); }
     .tx-amount { grid-area: amount; text-align: right; font-weight: 700; font-size: 17px; color: var(--text); }
+    /* 金額テキストの符号色：支出=赤・収入=緑。振替は既定の var(--text) を維持 */
+    .tx-type.type-expense ~ .tx-amount { color: var(--expense); }
+    .tx-type.type-income  ~ .tx-amount { color: var(--income); }
     .tx-detail { grid-area: detail; font-size: 13px; color: var(--text-dim); word-break: break-all; }
 
     /* ====== 設定タブ ====== */
