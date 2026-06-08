@@ -407,6 +407,79 @@
     .cal-detail-amount.pos { color: var(--income); }
     .cal-detail-amount.neg { color: var(--expense); }
 
+    /* ====== 仕事タブ（経費按分の表示専用ビュー）====== */
+    .work-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+    .work-year-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .work-year-nav button {
+      background: var(--surface-elev);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .work-year-label { font-size: 18px; font-weight: 700; color: var(--text); }
+    .work-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+    }
+    .work-summary-item { text-align: center; }
+    .work-summary-label { color: var(--text-dim); font-size: 11px; line-height: 1.3; }
+    .work-summary-value { font-size: 16px; font-weight: 700; margin-top: 4px; color: var(--text-dim); }
+    .work-summary-value.highlight { color: var(--primary); font-size: 19px; }
+    .work-section-title {
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      margin: 8px 4px 6px;
+    }
+    .work-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .work-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: baseline;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .work-row + .work-row { border-top: 1px solid var(--border); }
+    .work-row:hover { background: var(--surface-elev); }
+    .work-row-date { color: var(--text-dim); font-size: 12px; }
+    .work-row-meta { color: var(--text); font-size: 13px; word-break: break-all; }
+    .work-row-numbers {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1px;
+      white-space: nowrap;
+    }
+    .work-row-gross { color: var(--text-dim); font-size: 12px; }
+    .work-row-ratio { color: var(--text-dim); font-size: 11px; }
+    .work-row-net { color: var(--primary); font-weight: 700; font-size: 15px; }
+    .work-empty { text-align: center; color: var(--text-muted); padding: 40px 16px; font-size: 14px; }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -453,6 +526,7 @@
       <button type="button" class="tab" data-tab="calendar">📅 カレンダー</button>
       <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
       <button type="button" class="tab" data-tab="cards">💳 カード</button>
+      <button type="button" class="tab" data-tab="work">🏢 仕事</button>
       <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
     </div>
   </header>
@@ -622,6 +696,33 @@
       <div id="cards-list"></div>
     </section>
 
+    <!-- ========== 仕事タブ（経費按分の表示専用ビュー）========== -->
+    <section id="tab-work" class="tab-panel">
+      <div class="work-header">
+        <div class="work-year-nav">
+          <button type="button" id="work-prev" aria-label="前年">◀</button>
+          <div id="work-year-label" class="work-year-label">—</div>
+          <button type="button" id="work-next" aria-label="翌年">▶</button>
+        </div>
+        <div class="work-summary">
+          <div class="work-summary-item">
+            <div class="work-summary-label">経費総額<br>（参考）</div>
+            <div id="work-summary-gross" class="work-summary-value">¥0</div>
+          </div>
+          <div class="work-summary-item">
+            <div class="work-summary-label">按分後経費<br>（確定申告で計上）</div>
+            <div id="work-summary-net" class="work-summary-value highlight">¥0</div>
+          </div>
+          <div class="work-summary-item">
+            <div class="work-summary-label">個人負担分<br>（参考）</div>
+            <div id="work-summary-personal" class="work-summary-value">¥0</div>
+          </div>
+        </div>
+      </div>
+      <div class="work-section-title">仕事の経費</div>
+      <div id="work-exp-list"></div>
+    </section>
+
     <!-- ========== 設定タブ ========== -->
     <section id="tab-settings" class="tab-panel">
       <div class="settings-toggle">
@@ -779,6 +880,8 @@
       calendarMonth: null,           // 'YYYY-MM'（main で今月に初期化）
       calendarSelectedDate: null,    // 'YYYY-MM-DD'｜null
       calSuppressNextClick: false,   // スワイプ後の誤クリック抑止
+      // 仕事タブ
+      workYear: null,                // number（main で今年に初期化）
       pendingDelete: null,    // { kind:'tx'|'master', colName, docId, name? }
       pendingEdit: null,      // { colName, doc }
       pendingChildParent: null, // { colName, parentId }
@@ -847,6 +950,8 @@
           if (colName === "payment_sources" || colName === "stores") renderCardsTab();
           // カレンダー明細で店名・カテゴリ名を表示するので、マスタ変更時も再描画
           renderCalendarTab();
+          // 仕事タブも店名・カテゴリ名を表示するので再描画
+          renderWorkTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -862,6 +967,7 @@
         renderAccountsTab();
         renderCardsTab();
         renderCalendarTab();
+        renderWorkTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -1385,6 +1491,99 @@
         `;
       }
       root.innerHTML = `<div class="cal-detail-head">${escapeHtml(label)}</div>${rows}`;
+    }
+
+    // ====== 仕事タブ（経費按分・表示専用ビュー）======
+    // 仕事の経費 = type=expense かつ work_ratio != null の伝票（その年の transaction_date）
+    // 按分計算：仕事計上額 = Math.round(amount * work_ratio / 100)
+    //          個人負担分 = amount - 仕事計上額
+    // 収入側は今回触らない（収入分類は別セッションで設計）。
+    function workExpensesForYear(year) {
+      const ystr = String(year);
+      return state.transactions.filter(tx =>
+        tx.type === "expense" &&
+        tx.work_ratio != null &&
+        tx.transaction_date &&
+        tx.transaction_date.slice(0, 4) === ystr
+      );
+    }
+    function workNetAmount(tx) {
+      const amt = Number(tx.amount || 0);
+      const ratio = Number(tx.work_ratio || 0);
+      return Math.round(amt * ratio / 100);
+    }
+    function computeWorkSummary(year) {
+      let gross = 0, net = 0;
+      for (const tx of workExpensesForYear(year)) {
+        const amt = Number(tx.amount || 0);
+        gross += amt;
+        net += workNetAmount(tx);
+      }
+      return { gross, net, personal: gross - net };
+    }
+    function navigateYear(delta) {
+      if (state.workYear == null) state.workYear = new Date().getFullYear();
+      state.workYear += delta;
+      renderWorkTab();
+    }
+
+    function renderWorkTab() {
+      const root = $("#work-exp-list");
+      const yearLabel = $("#work-year-label");
+      if (!root || !yearLabel) return;
+      if (state.workYear == null) state.workYear = new Date().getFullYear();
+      yearLabel.textContent = `${state.workYear}年`;
+
+      const summary = computeWorkSummary(state.workYear);
+      $("#work-summary-gross").textContent    = "¥" + summary.gross.toLocaleString();
+      $("#work-summary-net").textContent      = "¥" + summary.net.toLocaleString();
+      $("#work-summary-personal").textContent = "¥" + summary.personal.toLocaleString();
+
+      // 明細：transaction_date 昇順
+      const items = workExpensesForYear(state.workYear)
+        .slice()
+        .sort((a, b) => (a.transaction_date || "").localeCompare(b.transaction_date || ""));
+
+      if (items.length === 0) {
+        root.innerHTML = `<div class="work-empty">この年の仕事の経費はありません</div>`;
+        return;
+      }
+
+      const rows = items.map(tx => {
+        const dt = tx.transaction_date || "";
+        // 店名
+        let store = "";
+        if (tx.store_id) {
+          const s = state.stores.find(x => x.id === tx.store_id);
+          if (s) store = s.name;
+        }
+        // 細目（親 > 子）
+        let cat = "";
+        if (tx.subcategory_id) {
+          const sub = state.subcategories.find(x => x.id === tx.subcategory_id);
+          if (sub) {
+            const parent = state.categories.find(c => c.id === sub.parent_id);
+            cat = parent ? `${parent.name} > ${sub.name}` : sub.name;
+          }
+        }
+        const meta = [store, cat].filter(Boolean).join(" / ");
+        const gross = Number(tx.amount || 0).toLocaleString();
+        const ratio = Number(tx.work_ratio || 0);
+        const net   = workNetAmount(tx).toLocaleString();
+        return `
+          <div class="work-row" data-id="${escapeHtml(tx.id)}">
+            <div class="work-row-date">${escapeHtml(dt)}</div>
+            <div class="work-row-meta">${escapeHtml(meta)}</div>
+            <div class="work-row-numbers">
+              <div class="work-row-gross">総額 ¥${escapeHtml(gross)}</div>
+              <div class="work-row-ratio">按分 ${escapeHtml(ratio)}%</div>
+              <div class="work-row-net">¥${escapeHtml(net)}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      root.innerHTML = `<div class="work-list">${rows}</div>`;
     }
 
     // ====== 一覧描画 ======
@@ -2205,6 +2404,17 @@
         const tx = state.transactions.find(t => t.id === id);
         if (tx) enterEditMode(tx);
       });
+      // 仕事タブ：前年／翌年ボタン
+      $("#work-prev").addEventListener("click", () => navigateYear(-1));
+      $("#work-next").addEventListener("click", () => navigateYear(+1));
+      // 仕事タブ明細：行タップ → 既存 enterEditMode を再利用
+      $("#work-exp-list").addEventListener("click", (e) => {
+        const row = e.target.closest(".work-row");
+        if (!row) return;
+        const id = row.dataset.id;
+        const tx = state.transactions.find(t => t.id === id);
+        if (tx) enterEditMode(tx);
+      });
     }
 
     // ====== IME / Enter ガード ======
@@ -2226,6 +2436,8 @@
         // カレンダー初期：今月、選択日＝今日
         state.calendarMonth = todayISO().slice(0, 7);
         state.calendarSelectedDate = todayISO();
+        // 仕事タブ初期：今年
+        state.workYear = new Date().getFullYear();
         subscribeMasters();          // live
         subscribeTransactions();     // live
         bindEvents();
@@ -2234,6 +2446,7 @@
         resetForm();
         switchTab("input");
         renderCalendarTab();          // データ未着時でもグリッドだけは描く
+        renderWorkTab();              // 同上：ヘッダだけは描く
       } catch (e) {
         console.error(e);
         document.body.insertAdjacentHTML(
