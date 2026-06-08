@@ -217,6 +217,75 @@
     .acc-bal.neg { color: var(--expense); }
     .accounts-empty { text-align: center; color: var(--text-muted); padding: 60px 16px; font-size: 16px; }
 
+    /* ====== カードタブ（未払い負債ビュー）====== */
+    .cards-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+    .cards-header .total-label {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    .cards-header .total-amount {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--unpaid);
+    }
+    .card-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .card-section-head {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .card-section-name {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .card-section-meta {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+    .card-subsection { padding: 4px 12px 8px; }
+    .card-subsection + .card-subsection { border-top: 1px solid var(--border); }
+    .card-subsection-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 4px;
+      font-size: 13px;
+    }
+    .card-subsection-title { font-weight: 600; color: var(--text); }
+    .card-subsection-subtotal { color: var(--unpaid); font-weight: 700; }
+    .card-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: baseline;
+      padding: 10px 4px;
+      cursor: pointer;
+    }
+    .card-row + .card-row { border-top: 1px solid var(--border); }
+    .card-row:hover { background: var(--surface-elev); }
+    .card-row-date  { color: var(--text-dim); font-size: 13px; }
+    .card-row-store { color: var(--text); font-size: 14px; word-break: break-all; }
+    .card-row-amount { color: var(--expense); font-weight: 700; font-size: 15px; }
+    .cards-empty { text-align: center; color: var(--text-muted); padding: 60px 16px; font-size: 16px; }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -261,6 +330,7 @@
       <button type="button" class="tab active" data-tab="input">📥 入力</button>
       <button type="button" class="tab" data-tab="list">📋 伝票一覧</button>
       <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
+      <button type="button" class="tab" data-tab="cards">💳 カード</button>
       <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
     </div>
   </header>
@@ -387,6 +457,15 @@
         <div id="accounts-total" class="total-amount">¥0</div>
       </div>
       <div id="accounts-list"></div>
+    </section>
+
+    <!-- ========== カードタブ（未払い負債ビュー）========== -->
+    <section id="tab-cards" class="tab-panel">
+      <div class="cards-header">
+        <div class="total-label">未払い総額</div>
+        <div id="cards-total" class="total-amount">¥0</div>
+      </div>
+      <div id="cards-list"></div>
     </section>
 
     <!-- ========== 設定タブ ========== -->
@@ -606,6 +685,8 @@
           renderSettings();
           // payment_sources 変更時に口座タブの残高に影響しうるため都度再描画
           if (colName === "payment_sources") renderAccountsTab();
+          // payment_sources（カード判定）と stores（店名表示）の変更でカードタブも再描画
+          if (colName === "payment_sources" || colName === "stores") renderCardsTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -619,6 +700,7 @@
         state.transactions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         renderList();
         renderAccountsTab();
+        renderCardsTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -877,6 +959,128 @@
       root.innerHTML = rows;
       totalEl.textContent = "¥" + total.toLocaleString();
       totalEl.className = "total-amount" + (total > 0 ? " pos" : total < 0 ? " neg" : "");
+    }
+
+    // ====== カード未払い負債（共通関数）======
+    // 条件：type=expense, 出どころが kind=card && subtype=credit,
+    //       transaction_date <= 今日, (payment_date が空 OR payment_date > 今日)
+    // 口座残高（作業#8）で減算されるのは payment_date <= 今日 のカード支出。
+    // ここは厳密にその補集合。デビット(subtype=debit)は対象外。
+    function cardExpensesUnpaid(cardId) {
+      const today = todayISO();
+      const src = state.payment_sources.find(s => s.id === cardId);
+      if (!src || src.kind !== "card" || src.subtype !== "credit") return [];
+      return state.transactions.filter(tx => {
+        if (tx.type !== "expense") return false;
+        if (tx.payment_source_id !== cardId) return false;
+        if (!tx.transaction_date || tx.transaction_date > today) return false;
+        if (!tx.payment_date) return true;     // 空 → 未払い
+        return tx.payment_date > today;         // 未来 → 未払い
+      });
+    }
+    function computeUnpaidTotal() {
+      let total = 0;
+      for (const card of state.payment_sources) {
+        if (card.kind !== "card" || card.subtype !== "credit") continue;
+        for (const tx of cardExpensesUnpaid(card.id)) {
+          total += Number(tx.amount || 0);
+        }
+      }
+      return total;
+    }
+
+    // ====== カードタブ描画 ======
+    function renderCardsTab() {
+      const root = $("#cards-list");
+      const totalEl = $("#cards-total");
+      if (!root || !totalEl) return;
+      const total = computeUnpaidTotal();
+      totalEl.textContent = "¥" + total.toLocaleString();
+      // 可視 credit カードのみ
+      const creditCards = visible(state.payment_sources)
+        .filter(c => c.kind === "card" && c.subtype === "credit");
+      if (creditCards.length === 0) {
+        root.innerHTML = `<div class="cards-empty">設定タブでクレジットカードを追加してください</div>`;
+        return;
+      }
+      let hasAny = false;
+      let html = "";
+      for (const card of creditCards) {
+        const unpaid = cardExpensesUnpaid(card.id);
+        if (unpaid.length === 0) continue; // 未払いなしのカードはセクション省略
+        hasAny = true;
+        // カード見出し（subtype・引落日を小注記）
+        const metaParts = [];
+        if (card.subtype) metaParts.push(card.subtype);
+        if (card.payment_day) metaParts.push(`毎月${card.payment_day}日引落`);
+        const meta = metaParts.length
+          ? `<span class="card-section-meta">${escapeHtml(metaParts.join(" / "))}</span>`
+          : "";
+        html += `<div class="card-section">
+          <div class="card-section-head">
+            <span class="card-section-name">${escapeHtml(card.name)}</span>
+            ${meta}
+          </div>`;
+        // 「支払日まだ」 vs 「YYYY-MM 月別」 にグループ化
+        const noDate = unpaid.filter(tx => !tx.payment_date);
+        const byMonth = {};
+        for (const tx of unpaid) {
+          if (!tx.payment_date) continue;
+          const m = tx.payment_date.slice(0, 7); // YYYY-MM
+          if (!byMonth[m]) byMonth[m] = [];
+          byMonth[m].push(tx);
+        }
+        // 1) 支払日まだ（先頭）
+        if (noDate.length > 0) {
+          noDate.sort((a, b) => (a.transaction_date || "").localeCompare(b.transaction_date || ""));
+          const sub = noDate.reduce((s, t) => s + Number(t.amount || 0), 0);
+          html += renderCardSubsectionHTML("支払日まだ", noDate, sub);
+        }
+        // 2) YYYY-MM ごとに月昇順
+        const months = Object.keys(byMonth).sort();
+        for (const m of months) {
+          const txs = byMonth[m].slice().sort(
+            (a, b) => (a.transaction_date || "").localeCompare(b.transaction_date || "")
+          );
+          const sub = txs.reduce((s, t) => s + Number(t.amount || 0), 0);
+          const [y, mo] = m.split("-");
+          html += renderCardSubsectionHTML(`${y}年${mo}月に引き落とし`, txs, sub);
+        }
+        html += `</div>`; // .card-section
+      }
+      if (!hasAny) {
+        root.innerHTML = `<div class="cards-empty">未払いはありません</div>`;
+        return;
+      }
+      root.innerHTML = html;
+    }
+
+    function renderCardSubsectionHTML(title, txs, subtotal) {
+      const rows = txs.map(tx => {
+        const dt = tx.transaction_date || "";
+        let storeName = "";
+        if (tx.store_id) {
+          const s = state.stores.find(x => x.id === tx.store_id);
+          if (s) storeName = s.name;
+        }
+        const amt = Number(tx.amount || 0).toLocaleString();
+        return `
+          <div class="card-row" data-id="${escapeHtml(tx.id)}">
+            <div class="card-row-date">${escapeHtml(dt)}</div>
+            <div class="card-row-store">${escapeHtml(storeName)}</div>
+            <div class="card-row-amount">¥${escapeHtml(amt)}</div>
+          </div>
+        `;
+      }).join("");
+      return `
+        <div class="card-subsection">
+          <div class="card-subsection-head">
+            <span class="card-subsection-title">${escapeHtml(title)}</span>
+            <span class="card-subsection-subtotal">¥${escapeHtml(subtotal.toLocaleString())}</span>
+          </div>
+          ${rows}
+        </div>
+      `;
     }
 
     // ====== 一覧描画 ======
@@ -1646,6 +1850,14 @@
     function bindListDelegation() {
       $("#list").addEventListener("click", (e) => {
         const row = e.target.closest(".tx-row");
+        if (!row) return;
+        const id = row.dataset.id;
+        const tx = state.transactions.find(t => t.id === id);
+        if (tx) enterEditMode(tx);
+      });
+      // カードタブ：行タップ → 既存 enterEditMode を再利用
+      $("#cards-list").addEventListener("click", (e) => {
+        const row = e.target.closest(".card-row");
         if (!row) return;
         const id = row.dataset.id;
         const tx = state.transactions.find(t => t.id === id);
