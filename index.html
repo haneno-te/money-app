@@ -286,6 +286,127 @@
     .card-row-amount { color: var(--expense); font-weight: 700; font-size: 15px; }
     .cards-empty { text-align: center; color: var(--text-muted); padding: 60px 16px; font-size: 16px; }
 
+    /* ====== カレンダータブ ====== */
+    .cal-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+    .cal-month-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .cal-month-nav button {
+      background: var(--surface-elev);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .cal-month-label { font-size: 18px; font-weight: 700; color: var(--text); }
+    .cal-month-totals {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .cal-month-totals .total { flex: 1; text-align: center; }
+    .cal-month-totals .total-label-sm { color: var(--text-dim); font-size: 12px; }
+    .cal-month-totals .total-value { font-weight: 700; font-size: 16px; margin-top: 2px; color: var(--text); }
+    .cal-month-totals .total-value.exp { color: var(--expense); }
+    .cal-month-totals .total-value.inc { color: var(--income); }
+
+    .cal-weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .cal-weekday {
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-dim);
+      padding: 6px 0;
+    }
+    .cal-weekday.is-sun { color: var(--expense); }
+    .cal-weekday.is-sat { color: var(--primary); }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+      touch-action: pan-y;
+    }
+    .cal-day {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px;
+      min-height: 60px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .cal-day.is-empty { background: transparent; border-color: transparent; cursor: default; }
+    .cal-day.is-today { border-color: var(--expense); border-width: 2px; padding: 3px; }
+    .cal-day.is-selected { background: var(--surface-elev); border-color: var(--primary); }
+    .cal-day-num { font-size: 12px; color: var(--text); font-weight: 600; }
+    .cal-day.is-sun .cal-day-num { color: var(--expense); }
+    .cal-day.is-sat .cal-day-num { color: var(--primary); }
+    .cal-exp { color: var(--expense); font-size: 10px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; word-break: break-all; margin-top: 2px; }
+    .cal-inc { color: var(--income); font-size: 10px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; word-break: break-all; }
+
+    .cal-detail {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .cal-detail-head {
+      padding: 12px 16px;
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+    .cal-detail-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 24px 16px;
+      font-size: 14px;
+    }
+    .cal-detail-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+    .cal-detail-row + .cal-detail-row { border-top: 1px solid var(--border); }
+    .cal-detail-row:hover { background: var(--surface-elev); }
+    .cal-detail-type {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      align-self: center;
+    }
+    .cal-detail-type.type-expense  { background: var(--expense-soft); color: var(--expense); }
+    .cal-detail-type.type-income   { background: var(--income-soft);  color: var(--income); }
+    .cal-detail-type.type-transfer { background: var(--primary-soft); color: var(--primary); }
+    .cal-detail-meta { color: var(--text-dim); font-size: 13px; word-break: break-all; }
+    .cal-detail-amount { font-weight: 700; font-size: 15px; color: var(--text); text-align: right; }
+    .cal-detail-amount.pos { color: var(--income); }
+    .cal-detail-amount.neg { color: var(--expense); }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -329,6 +450,7 @@
     <div class="tabs">
       <button type="button" class="tab active" data-tab="input">📥 入力</button>
       <button type="button" class="tab" data-tab="list">📋 伝票一覧</button>
+      <button type="button" class="tab" data-tab="calendar">📅 カレンダー</button>
       <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
       <button type="button" class="tab" data-tab="cards">💳 カード</button>
       <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
@@ -448,6 +570,38 @@
     <section id="tab-list" class="tab-panel">
       <div id="list-empty" hidden>まだ伝票がありません</div>
       <div id="list"></div>
+    </section>
+
+    <!-- ========== カレンダータブ（表示専用ビュー）========== -->
+    <section id="tab-calendar" class="tab-panel">
+      <div class="cal-header">
+        <div class="cal-month-nav">
+          <button type="button" id="cal-prev" aria-label="前月">◀</button>
+          <div id="cal-month-label" class="cal-month-label">—</div>
+          <button type="button" id="cal-next" aria-label="翌月">▶</button>
+        </div>
+        <div class="cal-month-totals">
+          <div class="total">
+            <div class="total-label-sm">今月支出</div>
+            <div id="cal-month-expense" class="total-value exp">¥0</div>
+          </div>
+          <div class="total">
+            <div class="total-label-sm">今月収入</div>
+            <div id="cal-month-income" class="total-value inc">¥0</div>
+          </div>
+        </div>
+      </div>
+      <div class="cal-weekdays">
+        <div class="cal-weekday is-sun">日</div>
+        <div class="cal-weekday">月</div>
+        <div class="cal-weekday">火</div>
+        <div class="cal-weekday">水</div>
+        <div class="cal-weekday">木</div>
+        <div class="cal-weekday">金</div>
+        <div class="cal-weekday is-sat">土</div>
+      </div>
+      <div id="cal-grid" class="cal-grid"></div>
+      <div id="cal-detail" class="cal-detail"></div>
     </section>
 
     <!-- ========== 口座タブ（表示専用ビュー）========== -->
@@ -621,6 +775,10 @@
       // UI
       showHidden: false,
       imeComposing: false,
+      // カレンダータブ
+      calendarMonth: null,           // 'YYYY-MM'（main で今月に初期化）
+      calendarSelectedDate: null,    // 'YYYY-MM-DD'｜null
+      calSuppressNextClick: false,   // スワイプ後の誤クリック抑止
       pendingDelete: null,    // { kind:'tx'|'master', colName, docId, name? }
       pendingEdit: null,      // { colName, doc }
       pendingChildParent: null, // { colName, parentId }
@@ -687,6 +845,8 @@
           if (colName === "payment_sources") renderAccountsTab();
           // payment_sources（カード判定）と stores（店名表示）の変更でカードタブも再描画
           if (colName === "payment_sources" || colName === "stores") renderCardsTab();
+          // カレンダー明細で店名・カテゴリ名を表示するので、マスタ変更時も再描画
+          renderCalendarTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -701,6 +861,7 @@
         renderList();
         renderAccountsTab();
         renderCardsTab();
+        renderCalendarTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -1081,6 +1242,149 @@
           ${rows}
         </div>
       `;
+    }
+
+    // ====== カレンダー（共通関数）======
+    // 集計基準：transaction_date（決済日＝使った日）。
+    // 振替は日／月合計から除外（純資産が動かないため）、ただし日明細リストには表示する。
+    function dayExpenseIncomeSums(dateStr) {
+      let expense = 0, income = 0;
+      for (const tx of state.transactions) {
+        if (tx.transaction_date !== dateStr) continue;
+        if (tx.type === "expense") expense += Number(tx.amount || 0);
+        else if (tx.type === "income") income += Number(tx.amount || 0);
+      }
+      return { expense, income };
+    }
+    function monthExpenseIncomeSums(yyyymm) {
+      let expense = 0, income = 0;
+      for (const tx of state.transactions) {
+        if (!tx.transaction_date) continue;
+        if (tx.transaction_date.slice(0, 7) !== yyyymm) continue;
+        if (tx.type === "expense") expense += Number(tx.amount || 0);
+        else if (tx.type === "income") income += Number(tx.amount || 0);
+      }
+      return { expense, income };
+    }
+    function dayTransactions(dateStr) {
+      return state.transactions.filter(tx => tx.transaction_date === dateStr);
+    }
+    function navigateMonth(delta) {
+      const [y, m] = state.calendarMonth.split("-").map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      state.calendarSelectedDate = null; // 月送り時は選択日リセット
+      renderCalendarTab();
+    }
+
+    // ====== カレンダー描画 ======
+    function renderCalendarTab() {
+      const grid = $("#cal-grid");
+      const monthLabel = $("#cal-month-label");
+      if (!grid || !monthLabel) return;
+      if (!state.calendarMonth) state.calendarMonth = todayISO().slice(0, 7);
+      const [y, m] = state.calendarMonth.split("-").map(Number);
+      const mLabel = String(m).padStart(2, "0");
+      monthLabel.textContent = `${y}年${mLabel}月`;
+
+      // 月合計
+      const monthSums = monthExpenseIncomeSums(state.calendarMonth);
+      $("#cal-month-expense").textContent = "¥" + monthSums.expense.toLocaleString();
+      $("#cal-month-income").textContent  = "¥" + monthSums.income.toLocaleString();
+
+      // グリッド組み立て
+      const firstDay = new Date(y, m - 1, 1);
+      const startWeekday = firstDay.getDay();             // 0=Sun, 6=Sat
+      const daysInMonth = new Date(y, m, 0).getDate();
+      const today = todayISO();
+
+      let html = "";
+      // 月初の前に空セル
+      for (let i = 0; i < startWeekday; i++) {
+        html += `<div class="cal-day is-empty"></div>`;
+      }
+      // 日セル
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dd = String(d).padStart(2, "0");
+        const dateStr = `${y}-${mLabel}-${dd}`;
+        const sums = dayExpenseIncomeSums(dateStr);
+        const isToday = dateStr === today;
+        const isSelected = dateStr === state.calendarSelectedDate;
+        const weekday = (startWeekday + d - 1) % 7;
+        const dowCls = weekday === 0 ? " is-sun" : weekday === 6 ? " is-sat" : "";
+        const todayCls = isToday ? " is-today" : "";
+        const selCls = isSelected ? " is-selected" : "";
+        let amts = "";
+        if (sums.expense > 0) amts += `<div class="cal-exp">¥${sums.expense.toLocaleString()}</div>`;
+        if (sums.income  > 0) amts += `<div class="cal-inc">+¥${sums.income.toLocaleString()}</div>`;
+        html += `
+          <div class="cal-day${dowCls}${todayCls}${selCls}" data-date="${escapeHtml(dateStr)}">
+            <div class="cal-day-num">${d}</div>
+            ${amts}
+          </div>
+        `;
+      }
+      grid.innerHTML = html;
+
+      renderCalendarDetail();
+    }
+
+    function renderCalendarDetail() {
+      const root = $("#cal-detail");
+      if (!root) return;
+      const date = state.calendarSelectedDate;
+      if (!date) {
+        root.innerHTML = `<div class="cal-detail-empty">日付を選択してください</div>`;
+        return;
+      }
+      const [yy, mm, dd] = date.split("-");
+      const label = `${yy}年${mm}月${dd}日`;
+      const txs = dayTransactions(date);
+      if (txs.length === 0) {
+        root.innerHTML = `
+          <div class="cal-detail-head">${escapeHtml(label)}</div>
+          <div class="cal-detail-empty">この日の伝票はありません</div>
+        `;
+        return;
+      }
+      let rows = "";
+      for (const tx of txs) {
+        const typeLabel = tx.type === "expense" ? "支" : tx.type === "income" ? "収" : "振";
+        const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
+        const amtCls = tx.type === "expense" ? "neg" : tx.type === "income" ? "pos" : "";
+        const amt = Number(tx.amount || 0).toLocaleString();
+        // 店名（あれば）
+        let store = "";
+        if (tx.store_id) {
+          const s = state.stores.find(x => x.id === tx.store_id);
+          if (s) store = s.name;
+        }
+        // カテゴリ細目（支出）／カテゴリ（収入）
+        let cat = "";
+        if (tx.type === "expense" && tx.subcategory_id) {
+          const sub = state.subcategories.find(x => x.id === tx.subcategory_id);
+          if (sub) {
+            const parent = state.categories.find(c => c.id === sub.parent_id);
+            cat = parent ? `${parent.name} > ${sub.name}` : sub.name;
+          }
+        } else if (tx.type === "income" && tx.category) {
+          const c = state.categories.find(x => x.id === tx.category);
+          if (c) cat = c.name;
+        } else if (tx.type === "transfer") {
+          const from = state.payment_sources.find(s => s.id === tx.from_account_id);
+          const to   = state.payment_sources.find(s => s.id === tx.to_account_id);
+          cat = `${from ? from.name : "?"} → ${to ? to.name : "?"}`;
+        }
+        const meta = [store, cat].filter(Boolean).join(" / ");
+        rows += `
+          <div class="cal-detail-row" data-id="${escapeHtml(tx.id)}">
+            <div class="cal-detail-type type-${escapeHtml(tx.type)}">${escapeHtml(typeLabel)}</div>
+            <div class="cal-detail-meta">${escapeHtml(meta)}</div>
+            <div class="cal-detail-amount ${amtCls}">${sign}¥${escapeHtml(amt)}</div>
+          </div>
+        `;
+      }
+      root.innerHTML = `<div class="cal-detail-head">${escapeHtml(label)}</div>${rows}`;
     }
 
     // ====== 一覧描画 ======
@@ -1863,6 +2167,44 @@
         const tx = state.transactions.find(t => t.id === id);
         if (tx) enterEditMode(tx);
       });
+      // カレンダータブ：前月／翌月ボタン
+      $("#cal-prev").addEventListener("click", () => navigateMonth(-1));
+      $("#cal-next").addEventListener("click", () => navigateMonth(+1));
+      // カレンダー：日セルクリック → 選択日更新 → 明細再描画（スワイプ後の誤クリックは抑止）
+      const calGrid = $("#cal-grid");
+      calGrid.addEventListener("click", (e) => {
+        if (state.calSuppressNextClick) { state.calSuppressNextClick = false; return; }
+        const cell = e.target.closest(".cal-day:not(.is-empty)");
+        if (!cell) return;
+        state.calendarSelectedDate = cell.dataset.date;
+        renderCalendarTab();
+      });
+      // カレンダー：左右スワイプで月送り（左=翌月／右=前月）
+      // しきい値：|dx| > 50 かつ |dx| > 1.5 * |dy|
+      let calTouchStartX = 0, calTouchStartY = 0;
+      calGrid.addEventListener("touchstart", (e) => {
+        const t = e.changedTouches[0];
+        calTouchStartX = t.clientX;
+        calTouchStartY = t.clientY;
+      }, { passive: true });
+      calGrid.addEventListener("touchend", (e) => {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - calTouchStartX;
+        const dy = t.clientY - calTouchStartY;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          state.calSuppressNextClick = true;
+          if (dx < 0) navigateMonth(+1);   // 左スワイプ＝翌月
+          else        navigateMonth(-1);   // 右スワイプ＝前月
+        }
+      }, { passive: true });
+      // カレンダー明細：行タップ → 既存 enterEditMode を再利用
+      $("#cal-detail").addEventListener("click", (e) => {
+        const row = e.target.closest(".cal-detail-row");
+        if (!row) return;
+        const id = row.dataset.id;
+        const tx = state.transactions.find(t => t.id === id);
+        if (tx) enterEditMode(tx);
+      });
     }
 
     // ====== IME / Enter ガード ======
@@ -1881,6 +2223,9 @@
     // ====== bootstrap ======
     async function main() {
       try {
+        // カレンダー初期：今月、選択日＝今日
+        state.calendarMonth = todayISO().slice(0, 7);
+        state.calendarSelectedDate = todayISO();
         subscribeMasters();          // live
         subscribeTransactions();     // live
         bindEvents();
@@ -1888,6 +2233,7 @@
         bindIMEGuards();
         resetForm();
         switchTab("input");
+        renderCalendarTab();          // データ未着時でもグリッドだけは描く
       } catch (e) {
         console.error(e);
         document.body.insertAdjacentHTML(
