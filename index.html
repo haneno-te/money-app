@@ -480,6 +480,188 @@
     .work-row-net { color: var(--primary); font-weight: 700; font-size: 15px; }
     .work-empty { text-align: center; color: var(--text-muted); padding: 40px 16px; font-size: 14px; }
 
+    /* ====== 集計タブ（読取専用ビュー）====== */
+    #tab-agg { touch-action: pan-y; }
+    .agg-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+    .agg-month-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .agg-month-nav button {
+      background: var(--surface-elev);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .agg-month-label { font-size: 18px; font-weight: 700; color: var(--text); }
+    .agg-month-total {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .agg-month-total .label { color: var(--text-dim); font-size: 12px; }
+    .agg-month-total .value { color: var(--expense); font-size: 26px; font-weight: 700; }
+    .agg-month-total .diff { color: var(--text-dim); font-size: 13px; }
+    .agg-month-total .diff.up { color: var(--expense); }
+    .agg-month-total .diff.dn { color: var(--income); }
+
+    .agg-axis-seg {
+      display: flex; gap: 6px; margin-bottom: 12px;
+    }
+    .agg-axis-seg button {
+      flex: 1; padding: 8px; border: 1px solid var(--border);
+      background: var(--surface-elev); color: var(--text);
+      border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .agg-axis-seg button.active {
+      background: var(--primary); border-color: var(--primary); color: #fff;
+    }
+
+    .agg-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .agg-block-head {
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 8px; margin-bottom: 8px;
+    }
+    .agg-block-title { color: var(--text-dim); font-size: 13px; font-weight: 600; }
+    .agg-view-toggle { display: flex; gap: 4px; }
+    .agg-view-toggle button {
+      background: var(--surface-elev); border: 1px solid var(--border); color: var(--text-dim);
+      padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .agg-view-toggle button.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    .agg-rank-list { display: flex; flex-direction: column; gap: 4px; }
+    .agg-rank-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 4px;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+    }
+    .agg-rank-row:last-child { border-bottom: none; }
+    .agg-rank-row:hover { background: var(--surface-elev); }
+    .agg-rank-row.is-open { background: var(--surface-elev); }
+    .agg-rank-dot {
+      width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0;
+    }
+    .agg-rank-name { color: var(--text); font-size: 14px; word-break: break-all; }
+    .agg-rank-amount { color: var(--text); font-weight: 700; font-size: 14px; text-align: right; }
+    .agg-rank-pct { color: var(--text-dim); font-size: 12px; text-align: right; min-width: 44px; }
+
+    .agg-sub-list {
+      padding: 6px 6px 10px 26px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    .agg-sub-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      padding: 6px 4px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .agg-sub-row:hover { background: var(--surface-elev); }
+    .agg-sub-name { color: var(--text); word-break: break-all; }
+    .agg-sub-amount { color: var(--text); font-weight: 700; text-align: right; }
+
+    .agg-drill-back {
+      background: var(--surface-elev); border: 1px solid var(--border); color: var(--text-dim);
+      padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+      margin-bottom: 8px;
+    }
+    .agg-drill-title {
+      color: var(--text); font-size: 14px; font-weight: 600; margin-bottom: 8px;
+    }
+
+    .agg-donut-wrap {
+      display: flex; align-items: center; justify-content: center; gap: 16px;
+      flex-wrap: wrap; padding: 12px 0;
+    }
+    .agg-donut { flex-shrink: 0; }
+    .agg-donut-legend { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+    .agg-donut-legend .lg-row {
+      display: grid; grid-template-columns: auto auto auto; gap: 8px; align-items: center;
+    }
+    .agg-donut-legend .lg-color { width: 10px; height: 10px; border-radius: 2px; }
+    .agg-donut-legend .lg-name { color: var(--text); }
+    .agg-donut-legend .lg-pct { color: var(--text-dim); font-size: 12px; min-width: 36px; text-align: right; }
+
+    .agg-series-controls {
+      display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px;
+    }
+    .agg-series-select {
+      width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface-elev); color: var(--text); font-size: 14px;
+    }
+    .agg-series-summary {
+      display: flex; gap: 16px; padding: 6px 4px;
+    }
+    .agg-series-summary .item { flex: 1; text-align: center; }
+    .agg-series-summary .label { color: var(--text-dim); font-size: 12px; }
+    .agg-series-summary .value { color: var(--text); font-size: 16px; font-weight: 700; margin-top: 2px; }
+    .agg-series-summary .value.current { color: var(--primary); font-size: 18px; }
+
+    .agg-bar-svg { width: 100%; height: 160px; display: block; }
+
+    .agg-bad-summary {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 6px 0 10px;
+    }
+    .agg-bad-summary .item { text-align: center; }
+    .agg-bad-summary .label { color: var(--text-dim); font-size: 12px; }
+    .agg-bad-summary .value { color: var(--text); font-size: 16px; font-weight: 700; margin-top: 2px; }
+    .agg-bad-summary .value.big { color: var(--unpaid); font-size: 22px; }
+    .agg-bad-savings { text-align: center; color: var(--unpaid); font-size: 13px; padding: 4px 0; }
+    .agg-bad-diff { text-align: center; color: var(--text-dim); font-size: 12px; padding-bottom: 6px; }
+    .agg-bad-diff.up { color: var(--expense); }
+    .agg-bad-diff.dn { color: var(--income); }
+    .agg-bad-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .agg-bad-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px; border-radius: 12px;
+      background: var(--surface-elev); border: 1px solid var(--border);
+      font-size: 12px; color: var(--text);
+    }
+    .agg-bad-chip-amt { color: var(--unpaid); font-weight: 700; }
+
+    .agg-unpaid-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .agg-unpaid-item {
+      background: var(--surface-elev); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px; text-align: center;
+    }
+    .agg-unpaid-item.big { grid-column: 1 / -1; }
+    .agg-unpaid-item .label { color: var(--text-dim); font-size: 12px; }
+    .agg-unpaid-item .value { color: var(--text); font-size: 16px; font-weight: 700; margin-top: 4px; }
+    .agg-unpaid-item.big .value { color: var(--unpaid); font-size: 22px; }
+
+    .agg-empty { text-align: center; color: var(--text-muted); padding: 30px 16px; font-size: 14px; }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -527,6 +709,7 @@
       <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
       <button type="button" class="tab" data-tab="cards">💳 カード</button>
       <button type="button" class="tab" data-tab="work">🏢 仕事</button>
+      <button type="button" class="tab" data-tab="agg">📊 集計</button>
       <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
     </div>
   </header>
@@ -723,6 +906,61 @@
       <div id="work-exp-list"></div>
     </section>
 
+    <!-- ========== 集計タブ（読取専用ビュー）========== -->
+    <section id="tab-agg" class="tab-panel">
+      <div class="agg-header">
+        <div class="agg-month-nav">
+          <button type="button" id="agg-prev" aria-label="前月">◀</button>
+          <div id="agg-month-label" class="agg-month-label">—</div>
+          <button type="button" id="agg-next" aria-label="翌月">▶</button>
+        </div>
+        <div class="agg-month-total">
+          <div class="label">当月の支出</div>
+          <div id="agg-month-total-value" class="value">¥0</div>
+          <div id="agg-month-diff" class="diff">—</div>
+        </div>
+      </div>
+
+      <div class="agg-axis-seg" id="agg-axis-seg">
+        <button type="button" class="active" data-axis="category">カテゴリ</button>
+        <button type="button" data-axis="store">店・場所</button>
+        <button type="button" data-axis="source">支払い方法</button>
+      </div>
+
+      <!-- ブロックA：当月の支出（軸別） -->
+      <div class="agg-block">
+        <div class="agg-block-head">
+          <div class="agg-block-title">当月の支出（軸別）</div>
+          <div class="agg-view-toggle" id="agg-view-toggle">
+            <button type="button" class="active" data-view="list">実数</button>
+            <button type="button" data-view="donut">円</button>
+          </div>
+        </div>
+        <div id="agg-block-a"></div>
+      </div>
+
+      <!-- ブロックB：項目別の推移 -->
+      <div class="agg-block">
+        <div class="agg-block-title" style="margin-bottom: 8px;">項目別の推移</div>
+        <div class="agg-series-controls">
+          <select id="agg-series-select" class="agg-series-select"></select>
+        </div>
+        <div id="agg-block-b"></div>
+      </div>
+
+      <!-- ブロックC：BAD -->
+      <div class="agg-block">
+        <div class="agg-block-title" style="margin-bottom: 8px;">無駄遣い（BAD）</div>
+        <div id="agg-block-c"></div>
+      </div>
+
+      <!-- ブロックD：未払い月次 -->
+      <div class="agg-block">
+        <div class="agg-block-title" style="margin-bottom: 8px;">未払い 月次サマリー</div>
+        <div id="agg-block-d"></div>
+      </div>
+    </section>
+
     <!-- ========== 設定タブ ========== -->
     <section id="tab-settings" class="tab-panel">
       <div class="settings-toggle">
@@ -860,6 +1098,8 @@
 
     // ====== 定数 ======
     const MASTER_COLS = ["payment_sources", "categories", "stores", "subcategories"];
+    // 集計グラフ用パレット（意味色＝赤・緑・オレンジは避ける）。集計タブのドット／ドーナツ／棒で使う
+    const CHART_PALETTE = ["#5b9eff","#a47bff","#2dd4bf","#fbbf24","#f472b6","#818cf8","#22d3ee","#94a3b8"];
 
     // ====== state ======
     const state = {
@@ -882,6 +1122,13 @@
       calSuppressNextClick: false,   // スワイプ後の誤クリック抑止
       // 仕事タブ
       workYear: null,                // number（main で今年に初期化）
+      // 集計タブ
+      aggMonth: null,                // 'YYYY-MM'（main で今月に初期化）
+      aggAxis: "category",           // 'category'|'store'|'source'
+      aggViewMode: "list",           // 'list'|'donut'
+      aggDrill: null,                // null | { kind:'parent'|'subcategory'|'store'|'source', id }
+      aggSelectedSeries: null,       // null | { kind:'parent'|'sub', id }
+      aggSuppressNextClick: false,   // スワイプ後の誤クリック抑止
       pendingDelete: null,    // { kind:'tx'|'master', colName, docId, name? }
       pendingEdit: null,      // { colName, doc }
       pendingChildParent: null, // { colName, parentId }
@@ -952,6 +1199,8 @@
           renderCalendarTab();
           // 仕事タブも店名・カテゴリ名を表示するので再描画
           renderWorkTab();
+          // 集計タブもマスタ名表示があるので再描画
+          renderAggTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -968,6 +1217,7 @@
         renderCardsTab();
         renderCalendarTab();
         renderWorkTab();
+        renderAggTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -1584,6 +1834,512 @@
       }).join("");
 
       root.innerHTML = `<div class="work-list">${rows}</div>`;
+    }
+
+    // ====== 集計タブ（読取専用ビュー）======
+    // 集計は新規 fetch せず、既存メモリ上の伝票と既存共通関数を再利用する。
+    function monthExpenseTransactions(yyyymm) {
+      return state.transactions.filter(tx =>
+        tx.type === "expense" &&
+        tx.transaction_date &&
+        tx.transaction_date.slice(0, 7) === yyyymm
+      );
+    }
+    function axisKeyForTx(tx, axis) {
+      if (axis === "category") {
+        if (!tx.subcategory_id) return "__none__";
+        const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+        if (!sub) return "__none__";
+        return sub.parent_id || "__none__";
+      }
+      if (axis === "store") return tx.store_id || "__none__";
+      return tx.payment_source_id || "__none__";
+    }
+    function axisLabelForKey(key, axis) {
+      if (key === "__none__") {
+        return axis === "category" ? "カテゴリなし"
+             : axis === "store"    ? "店なし"
+             : "未指定";
+      }
+      if (axis === "category") {
+        const c = state.categories.find(x => x.id === key);
+        return c ? c.name : "?";
+      }
+      if (axis === "store") {
+        const s = state.stores.find(x => x.id === key);
+        return s ? s.name : "?";
+      }
+      const p = state.payment_sources.find(x => x.id === key);
+      if (!p) return "?";
+      return p.kind === "card" ? `カード:${p.name}` : `口座:${p.name}`;
+    }
+    function monthAxisAggregate(yyyymm, axis) {
+      const txs = monthExpenseTransactions(yyyymm);
+      const buckets = new Map();
+      let total = 0;
+      for (const tx of txs) {
+        const k = axisKeyForTx(tx, axis);
+        if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0, txs: [] });
+        const b = buckets.get(k);
+        const a = Number(tx.amount || 0);
+        b.amount += a; b.count++; b.txs.push(tx);
+        total += a;
+      }
+      const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
+      items.forEach((it, i) => {
+        it.label = axisLabelForKey(it.key, axis);
+        it.color = CHART_PALETTE[i % CHART_PALETTE.length];
+        it.percent = total > 0 ? it.amount / total : 0;
+      });
+      return { items, total };
+    }
+    function categorySubBreakdown(yyyymm, parentId) {
+      // カテゴリ親軸でドリル：その親 category の細目別集計
+      // axisKeyForTx と整合：__none__ 親は「subcategory_id なし／sub が孤児／sub.parent_id 無し」を含む
+      const txs = monthExpenseTransactions(yyyymm).filter(tx => {
+        if (parentId === "__none__") {
+          if (!tx.subcategory_id) return true;
+          const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+          if (!sub) return true;
+          return !sub.parent_id;
+        }
+        if (!tx.subcategory_id) return false;
+        const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+        return sub && sub.parent_id === parentId;
+      });
+      const buckets = new Map();
+      for (const tx of txs) {
+        const k = tx.subcategory_id || "__none__";
+        if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0, txs: [] });
+        const b = buckets.get(k);
+        b.amount += Number(tx.amount || 0); b.count++; b.txs.push(tx);
+      }
+      const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
+      items.forEach(it => {
+        if (it.key === "__none__") {
+          it.label = "細目なし";
+        } else {
+          const sub = state.subcategories.find(s => s.id === it.key);
+          it.label = sub ? sub.name : "?";
+        }
+      });
+      return items;
+    }
+    function txsForDrill(drill, yyyymm) {
+      // ドリルダウンの末端：その絞りで当月の伝票を返す
+      const txs = monthExpenseTransactions(yyyymm);
+      if (!drill) return [];
+      if (drill.kind === "subcategory") {
+        return txs.filter(tx => (tx.subcategory_id || "__none__") === drill.id);
+      }
+      if (drill.kind === "store") {
+        return txs.filter(tx => (tx.store_id || "__none__") === drill.id);
+      }
+      if (drill.kind === "source") {
+        return txs.filter(tx => (tx.payment_source_id || "__none__") === drill.id);
+      }
+      return [];
+    }
+    function monthsBackArray(yyyymm, n) {
+      const arr = [];
+      const [yy, mm] = yyyymm.split("-").map(Number);
+      for (let off = -(n - 1); off <= 0; off++) {
+        const d = new Date(yy, mm - 1 + off, 1);
+        arr.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+      }
+      return arr;
+    }
+    // ブロックB：項目別推移。月割当は target_month があれば優先、無ければ決済日。
+    function seriesMonthlyTotals(seriesKind, seriesId, yyyymm, n) {
+      const months = monthsBackArray(yyyymm, n);
+      const sums = months.map(() => 0);
+      for (const tx of state.transactions) {
+        if (tx.type !== "expense") continue;
+        const bucket = tx.target_month
+          ? tx.target_month
+          : (tx.transaction_date ? tx.transaction_date.slice(0, 7) : null);
+        if (!bucket) continue;
+        const idx = months.indexOf(bucket);
+        if (idx < 0) continue;
+        let matches = false;
+        if (seriesKind === "parent") {
+          if (!tx.subcategory_id) matches = (seriesId === "__none__");
+          else {
+            const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+            if (!sub) matches = (seriesId === "__none__");
+            else matches = (sub.parent_id === seriesId);
+          }
+        } else if (seriesKind === "sub") {
+          matches = (tx.subcategory_id === seriesId);
+        }
+        if (matches) sums[idx] += Number(tx.amount || 0);
+      }
+      return { months, sums };
+    }
+    // ブロックC：BAD 月別集計
+    function monthBadAggregate(yyyymm) {
+      const all = monthExpenseTransactions(yyyymm);
+      const bad = all.filter(tx => tx.is_bad);
+      const totalAll = all.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const totalBad = bad.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const buckets = new Map();
+      for (const tx of bad) {
+        const k = tx.subcategory_id || "__none__";
+        if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0 });
+        const b = buckets.get(k);
+        b.amount += Number(tx.amount || 0); b.count++;
+      }
+      const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
+      items.forEach(it => {
+        if (it.key === "__none__") {
+          it.label = "細目なし";
+        } else {
+          const sub = state.subcategories.find(s => s.id === it.key);
+          if (sub) {
+            const parent = state.categories.find(c => c.id === sub.parent_id);
+            it.label = parent ? `${parent.name}>${sub.name}` : sub.name;
+          } else it.label = "?";
+        }
+      });
+      return { totalBad, totalAll, items, percent: totalAll > 0 ? totalBad / totalAll : 0 };
+    }
+    // ブロックD：未払い月次サマリー
+    function monthUnpaidSummary(yyyymm) {
+      const today = todayISO();
+      const confirmAmount = computeUnpaidTotal();
+      let newThisMonth = 0;
+      let carryOver = 0;
+      for (const card of state.payment_sources) {
+        if (card.kind !== "card" || card.subtype !== "credit") continue;
+        for (const tx of cardExpensesUnpaid(card.id)) {
+          const txMonth = tx.transaction_date ? tx.transaction_date.slice(0, 7) : null;
+          if (txMonth === yyyymm) newThisMonth += Number(tx.amount || 0);
+          else carryOver += Number(tx.amount || 0);
+        }
+      }
+      let settledThisMonth = 0;
+      for (const tx of state.transactions) {
+        if (tx.type !== "expense") continue;
+        const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
+        if (!src || src.kind !== "card" || src.subtype !== "credit") continue;
+        if (!tx.payment_date) continue;
+        if (tx.payment_date.slice(0, 7) !== yyyymm) continue;
+        if (tx.payment_date > today) continue;
+        settledThisMonth += Number(tx.amount || 0);
+      }
+      return { confirmAmount, newThisMonth, carryOver, settledThisMonth };
+    }
+    function navigateAggMonth(delta) {
+      if (!state.aggMonth) state.aggMonth = todayISO().slice(0, 7);
+      const [y, m] = state.aggMonth.split("-").map(Number);
+      const d = new Date(y, m - 1 + delta, 1);
+      state.aggMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      state.aggDrill = null; // 月送り時はドリルもリセット
+      renderAggTab();
+    }
+
+    // ====== 集計タブ描画 ======
+    function renderAggTab() {
+      if (!$("#agg-month-label")) return;
+      if (!state.aggMonth) state.aggMonth = todayISO().slice(0, 7);
+      renderAggHeader();
+      renderAggAxisSeg();
+      renderAggBlockA();
+      renderAggBlockB();
+      renderAggBlockC();
+      renderAggBlockD();
+    }
+    function renderAggHeader() {
+      const [y, m] = state.aggMonth.split("-").map(Number);
+      $("#agg-month-label").textContent = `${y}年${String(m).padStart(2, "0")}月`;
+      const cur = monthExpenseIncomeSums(state.aggMonth);
+      const prevD = new Date(y, m - 2, 1);
+      const prevYm = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+      const prev = monthExpenseIncomeSums(prevYm);
+      $("#agg-month-total-value").textContent = "¥" + cur.expense.toLocaleString();
+      const diff = cur.expense - prev.expense;
+      const diffEl = $("#agg-month-diff");
+      if (prev.expense === 0 && cur.expense === 0) {
+        diffEl.textContent = "—";
+        diffEl.className = "diff";
+      } else {
+        const sign = diff >= 0 ? "+" : "−";
+        diffEl.textContent = `先月比 ${sign}¥${Math.abs(diff).toLocaleString()}`;
+        diffEl.className = "diff " + (diff > 0 ? "up" : diff < 0 ? "dn" : "");
+      }
+    }
+    function renderAggAxisSeg() {
+      for (const btn of $$('#agg-axis-seg button')) {
+        btn.classList.toggle("active", btn.dataset.axis === state.aggAxis);
+      }
+      for (const btn of $$('#agg-view-toggle button')) {
+        btn.classList.toggle("active", btn.dataset.view === state.aggViewMode);
+      }
+    }
+    function renderAggBlockA() {
+      const root = $("#agg-block-a");
+      if (!root) return;
+      // ドリル状態の優先
+      if (state.aggDrill && (state.aggDrill.kind === "subcategory" || state.aggDrill.kind === "store" || state.aggDrill.kind === "source")) {
+        const txs = txsForDrill(state.aggDrill, state.aggMonth);
+        let title = "";
+        if (state.aggDrill.kind === "subcategory") {
+          if (state.aggDrill.id === "__none__") title = "細目なし";
+          else {
+            const sub = state.subcategories.find(s => s.id === state.aggDrill.id);
+            title = sub ? sub.name : "?";
+          }
+        } else {
+          title = axisLabelForKey(state.aggDrill.id, state.aggDrill.kind);
+        }
+        root.innerHTML = `
+          <button type="button" class="agg-drill-back" data-agg-drill-back>← 戻る</button>
+          <div class="agg-drill-title">${escapeHtml(title)} の伝票（${txs.length}件）</div>
+          <div id="agg-drill-list">${renderTxRowsHTML(txs)}</div>
+        `;
+        return;
+      }
+      const { items, total } = monthAxisAggregate(state.aggMonth, state.aggAxis);
+      if (items.length === 0) {
+        root.innerHTML = `<div class="agg-empty">この月の支出はまだありません</div>`;
+        return;
+      }
+      if (state.aggViewMode === "donut") {
+        root.innerHTML = renderDonutSVG(items, total);
+      } else {
+        // 実数ランキング
+        let rows = "";
+        for (const it of items) {
+          const isOpen = state.aggAxis === "category" && state.aggDrill
+            && state.aggDrill.kind === "parent" && state.aggDrill.id === it.key;
+          const drillAttr =
+            state.aggAxis === "category"
+              ? `data-drill-kind="parent" data-drill-id="${escapeHtml(it.key)}"`
+              : `data-drill-kind="${escapeHtml(state.aggAxis)}" data-drill-id="${escapeHtml(it.key)}"`;
+          rows += `
+            <div class="agg-rank-row ${isOpen ? "is-open" : ""}" ${drillAttr}>
+              <span class="agg-rank-dot" style="background:${it.color}"></span>
+              <span class="agg-rank-name">${escapeHtml(it.label)}</span>
+              <span class="agg-rank-amount">¥${escapeHtml(it.amount.toLocaleString())}</span>
+              <span class="agg-rank-pct">${Math.round(it.percent * 100)}%</span>
+            </div>
+          `;
+          if (isOpen) {
+            const subs = categorySubBreakdown(state.aggMonth, it.key);
+            if (subs.length === 0) {
+              rows += `<div class="agg-sub-list"><div class="agg-empty" style="padding:8px">この月の細目はありません</div></div>`;
+            } else {
+              let subRows = "";
+              for (const s of subs) {
+                subRows += `
+                  <div class="agg-sub-row" data-drill-kind="subcategory" data-drill-id="${escapeHtml(s.key)}">
+                    <span class="agg-sub-name">${escapeHtml(s.label)}</span>
+                    <span class="agg-sub-amount">¥${escapeHtml(s.amount.toLocaleString())}</span>
+                  </div>
+                `;
+              }
+              rows += `<div class="agg-sub-list">${subRows}</div>`;
+            }
+          }
+        }
+        root.innerHTML = `<div class="agg-rank-list">${rows}</div>`;
+      }
+    }
+    function renderDonutSVG(items, total) {
+      const size = 180, stroke = 28, R = (size - stroke) / 2;
+      const cx = size / 2, cy = size / 2;
+      const C = 2 * Math.PI * R;
+      let offset = 0;
+      const segs = items.map(it => {
+        const len = total > 0 ? (it.amount / total) * C : 0;
+        const dash = `${len} ${C - len}`;
+        const dashoffset = -offset;
+        offset += len;
+        return `<circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="${it.color}" stroke-width="${stroke}" stroke-dasharray="${dash}" stroke-dashoffset="${dashoffset}" transform="rotate(-90 ${cx} ${cy})"></circle>`;
+      }).join("");
+      const legend = items.map(it => `
+        <div class="lg-row">
+          <span class="lg-color" style="background:${it.color}"></span>
+          <span class="lg-name">${escapeHtml(it.label)}</span>
+          <span class="lg-pct">${Math.round(it.percent * 100)}%</span>
+        </div>
+      `).join("");
+      return `
+        <div class="agg-donut-wrap">
+          <svg class="agg-donut" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-label="ドーナツチャート">
+            ${segs}
+            <text x="${cx}" y="${cy - 4}" text-anchor="middle" fill="var(--text-dim)" font-size="11">合計</text>
+            <text x="${cx}" y="${cy + 14}" text-anchor="middle" fill="var(--text)" font-size="16" font-weight="700">¥${escapeHtml(total.toLocaleString())}</text>
+          </svg>
+          <div class="agg-donut-legend">${legend}</div>
+        </div>
+      `;
+    }
+    // ブロックB
+    function buildSeriesOptions() {
+      // 親カテゴリ + 細目（親で optgroup）
+      const sel = $("#agg-series-select");
+      if (!sel) return;
+      const prev = sel.value;
+      let html = "";
+      const parents = state.categories.filter(c => c.kind === "expense")
+        .slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      for (const p of parents) {
+        html += `<option value="parent:${escapeHtml(p.id)}">[親] ${escapeHtml(p.name)}</option>`;
+        const subs = state.subcategories.filter(s => s.parent_id === p.id)
+          .slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+        for (const s of subs) {
+          html += `<option value="sub:${escapeHtml(s.id)}">　└ ${escapeHtml(s.name)}</option>`;
+        }
+      }
+      html += `<option value="parent:__none__">[親] カテゴリなし</option>`;
+      sel.innerHTML = html;
+      // 復元 or 初期選択
+      if (prev && Array.from(sel.options).some(o => o.value === prev)) {
+        sel.value = prev;
+      } else if (state.aggSelectedSeries) {
+        const v = `${state.aggSelectedSeries.kind}:${state.aggSelectedSeries.id}`;
+        if (Array.from(sel.options).some(o => o.value === v)) sel.value = v;
+      }
+      // 未選択なら先頭
+      if (!sel.value && sel.options.length) sel.value = sel.options[0].value;
+      // state を同期
+      const [k, id] = sel.value.split(":");
+      state.aggSelectedSeries = { kind: k, id };
+    }
+    function renderAggBlockB() {
+      const root = $("#agg-block-b");
+      if (!root) return;
+      buildSeriesOptions();
+      if (!state.aggSelectedSeries) {
+        root.innerHTML = `<div class="agg-empty">対象がありません</div>`;
+        return;
+      }
+      const { kind, id } = state.aggSelectedSeries;
+      const { months, sums } = seriesMonthlyTotals(kind, id, state.aggMonth, 12);
+      const current = sums[sums.length - 1];
+      const avg = sums.length ? Math.round(sums.reduce((s, v) => s + v, 0) / sums.length) : 0;
+      const max = Math.max(...sums, 1);
+      const W = 320, H = 160, padL = 8, padR = 8, padT = 14, padB = 18;
+      const innerW = W - padL - padR, innerH = H - padT - padB;
+      const barW = innerW / months.length * 0.7;
+      const gap  = innerW / months.length * 0.3;
+      let bars = "";
+      months.forEach((m, i) => {
+        const h = max > 0 ? (sums[i] / max) * innerH : 0;
+        const x = padL + i * (barW + gap);
+        const y = padT + (innerH - h);
+        const isCurrent = i === months.length - 1;
+        const color = isCurrent ? "var(--primary)" : CHART_PALETTE[1];
+        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" rx="2"></rect>`;
+        if (isCurrent) {
+          const mm = m.split("-")[1];
+          bars += `<text x="${(x + barW / 2).toFixed(1)}" y="${(H - 4).toFixed(1)}" text-anchor="middle" fill="var(--text-dim)" font-size="9">${mm}</text>`;
+        }
+      });
+      // 平均線
+      const avgY = padT + (innerH - (max > 0 ? (avg / max) * innerH : 0));
+      const avgLine = `<line x1="${padL}" y1="${avgY.toFixed(1)}" x2="${W - padR}" y2="${avgY.toFixed(1)}" stroke="var(--text-dim)" stroke-width="1" stroke-dasharray="3 3"></line>`;
+      const svg = `<svg class="agg-bar-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="月別推移">${bars}${avgLine}</svg>`;
+      root.innerHTML = `
+        <div class="agg-series-summary">
+          <div class="item"><div class="label">今月</div><div class="value current">¥${current.toLocaleString()}</div></div>
+          <div class="item"><div class="label">12ヶ月平均</div><div class="value">¥${avg.toLocaleString()}</div></div>
+        </div>
+        ${svg}
+      `;
+    }
+    function renderAggBlockC() {
+      const root = $("#agg-block-c");
+      if (!root) return;
+      const cur = monthBadAggregate(state.aggMonth);
+      const [y, m] = state.aggMonth.split("-").map(Number);
+      const prevD = new Date(y, m - 2, 1);
+      const prevYm = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+      const prev = monthBadAggregate(prevYm);
+      const diff = cur.totalBad - prev.totalBad;
+      const pct = Math.round(cur.percent * 100);
+      let chips = "";
+      if (cur.items.length === 0) {
+        chips = `<div class="agg-empty" style="padding:8px">BAD はありません</div>`;
+      } else {
+        chips = `<div class="agg-bad-chips">` + cur.items.map(it => `
+          <span class="agg-bad-chip">${escapeHtml(it.label)} <span class="agg-bad-chip-amt">¥${escapeHtml(it.amount.toLocaleString())}</span></span>
+        `).join("") + `</div>`;
+      }
+      const diffCls = diff > 0 ? "up" : diff < 0 ? "dn" : "";
+      const diffSign = diff >= 0 ? "+" : "−";
+      const diffTxt = (prev.totalBad === 0 && cur.totalBad === 0)
+        ? "—"
+        : `先月比 ${diffSign}¥${Math.abs(diff).toLocaleString()}`;
+      root.innerHTML = `
+        <div class="agg-bad-summary">
+          <div class="item"><div class="label">BAD 合計</div><div class="value big">¥${cur.totalBad.toLocaleString()}</div></div>
+          <div class="item"><div class="label">支出に占める割合</div><div class="value">${pct}%</div></div>
+        </div>
+        <div class="agg-bad-savings">我慢できていれば ¥${cur.totalBad.toLocaleString()} 貯金できた</div>
+        <div class="agg-bad-diff ${diffCls}">${escapeHtml(diffTxt)}</div>
+        ${chips}
+      `;
+    }
+    function renderAggBlockD() {
+      const root = $("#agg-block-d");
+      if (!root) return;
+      const u = monthUnpaidSummary(state.aggMonth);
+      root.innerHTML = `
+        <div class="agg-unpaid-grid">
+          <div class="agg-unpaid-item big"><div class="label">確保しておく額（現在の未払い総額）</div><div class="value">¥${u.confirmAmount.toLocaleString()}</div></div>
+          <div class="agg-unpaid-item"><div class="label">今月の新規</div><div class="value">¥${u.newThisMonth.toLocaleString()}</div></div>
+          <div class="agg-unpaid-item"><div class="label">先月からの繰越</div><div class="value">¥${u.carryOver.toLocaleString()}</div></div>
+          <div class="agg-unpaid-item big"><div class="label">清算済み（今月・参考）</div><div class="value">¥${u.settledThisMonth.toLocaleString()}</div></div>
+        </div>
+      `;
+    }
+    // 集計のドリル：伝票行 HTML を組み立て（renderList と同じ class を使い、既存スタイルを流用）
+    function renderTxRowsHTML(txs) {
+      if (txs.length === 0) return `<div class="agg-empty">この絞り込みに該当する伝票はありません</div>`;
+      return txs.map((tx) => {
+        const typeLabel = tx.type === "expense" ? "支出" : tx.type === "income" ? "収入" : "振替";
+        let detail = "";
+        if (tx.type === "expense") {
+          const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
+          const srcName = src ? (src.kind === "card" ? `カード:${src.name}` : `口座:${src.name}`) : "?";
+          let catName;
+          if (tx.subcategory_id) {
+            const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
+            if (sub) {
+              const parent = state.categories.find(c => c.id === sub.parent_id);
+              catName = parent ? `${parent.name} > ${sub.name}` : sub.name;
+            } else catName = "?";
+          } else catName = "カテゴリなし";
+          const store = state.stores.find(s => s.id === tx.store_id);
+          const storePart = store ? ` @${store.name}` : "";
+          detail = `${srcName} / ${catName}${storePart}`;
+        } else if (tx.type === "income") {
+          const acc = state.payment_sources.find(s => s.id === tx.to_account_id);
+          const accName = acc ? acc.name : "?";
+          const cat = state.categories.find(c => c.id === tx.category);
+          const catName = tx.category ? (cat ? cat.name : "?") : "カテゴリなし";
+          const cp = tx.counterparty ? `（${tx.counterparty}）` : "";
+          detail = `→${accName} / ${catName}${cp}`;
+        } else {
+          const from = state.payment_sources.find(s => s.id === tx.from_account_id);
+          const to   = state.payment_sources.find(s => s.id === tx.to_account_id);
+          detail = `${from ? from.name : "?"} → ${to ? to.name : "?"}`;
+          if (tx.fee) detail += `（手数料 ¥${Number(tx.fee).toLocaleString()}）`;
+        }
+        const memo = tx.memo ? ` / ${tx.memo.length > 20 ? tx.memo.slice(0, 20) + "…" : tx.memo}` : "";
+        const amt = Number(tx.amount || 0).toLocaleString();
+        const dt  = tx.transaction_date || "";
+        return `
+          <div class="tx-row" data-id="${escapeHtml(tx.id)}">
+            <div class="tx-date">${escapeHtml(dt)}</div>
+            <div class="tx-type type-${escapeHtml(tx.type)}">${escapeHtml(typeLabel)}</div>
+            <div class="tx-amount">¥${escapeHtml(amt)}</div>
+            <div class="tx-detail">${escapeHtml(detail + memo)}</div>
+          </div>
+        `;
+      }).join("");
     }
 
     // ====== 一覧描画 ======
@@ -2415,6 +3171,92 @@
         const tx = state.transactions.find(t => t.id === id);
         if (tx) enterEditMode(tx);
       });
+      // 集計タブ：前月／翌月ボタン
+      $("#agg-prev").addEventListener("click", () => navigateAggMonth(-1));
+      $("#agg-next").addEventListener("click", () => navigateAggMonth(+1));
+      // 軸セグメント
+      $("#agg-axis-seg").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-axis]");
+        if (!btn) return;
+        state.aggAxis = btn.dataset.axis;
+        state.aggDrill = null;
+        renderAggTab();
+      });
+      // 実数/円 トグル
+      $("#agg-view-toggle").addEventListener("click", (e) => {
+        const btn = e.target.closest("button[data-view]");
+        if (!btn) return;
+        state.aggViewMode = btn.dataset.view;
+        state.aggDrill = null;
+        renderAggTab();
+      });
+      // ブロックA：ランキング行クリック → ドリル
+      const aggBlockA = $("#agg-block-a");
+      aggBlockA.addEventListener("click", (e) => {
+        if (state.aggSuppressNextClick) { state.aggSuppressNextClick = false; return; }
+        // 戻るボタン
+        const back = e.target.closest("[data-agg-drill-back]");
+        if (back) { state.aggDrill = null; renderAggTab(); return; }
+        // ドリル末端：伝票行クリック → enterEditMode
+        const txRow = e.target.closest(".tx-row");
+        if (txRow) {
+          const id = txRow.dataset.id;
+          const tx = state.transactions.find(t => t.id === id);
+          if (tx) enterEditMode(tx);
+          return;
+        }
+        // ドリル展開：細目行クリック
+        const subRow = e.target.closest("[data-drill-kind='subcategory']");
+        if (subRow) {
+          state.aggDrill = { kind: "subcategory", id: subRow.dataset.drillId };
+          renderAggTab();
+          return;
+        }
+        // ドリル展開：ランキング行クリック
+        const row = e.target.closest("[data-drill-kind]");
+        if (!row) return;
+        const kind = row.dataset.drillKind;
+        const id   = row.dataset.drillId;
+        if (kind === "parent") {
+          // カテゴリ親のアコーディオン開閉
+          if (state.aggDrill && state.aggDrill.kind === "parent" && state.aggDrill.id === id) {
+            state.aggDrill = null;
+          } else {
+            state.aggDrill = { kind: "parent", id };
+          }
+          renderAggTab();
+        } else {
+          // store / source → 直接伝票リスト
+          state.aggDrill = { kind, id };
+          renderAggTab();
+        }
+      });
+      // ブロックB：select 変更
+      $("#agg-series-select").addEventListener("change", (e) => {
+        const v = e.target.value;
+        if (!v) return;
+        const [k, id] = v.split(":");
+        state.aggSelectedSeries = { kind: k, id };
+        renderAggBlockB();
+      });
+      // 集計タブ：左右スワイプで月送り（カレンダーパターン流用）
+      const aggPanel = $("#tab-agg");
+      let aggTouchStartX = 0, aggTouchStartY = 0;
+      aggPanel.addEventListener("touchstart", (e) => {
+        const t = e.changedTouches[0];
+        aggTouchStartX = t.clientX;
+        aggTouchStartY = t.clientY;
+      }, { passive: true });
+      aggPanel.addEventListener("touchend", (e) => {
+        const t = e.changedTouches[0];
+        const dx = t.clientX - aggTouchStartX;
+        const dy = t.clientY - aggTouchStartY;
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          state.aggSuppressNextClick = true;
+          if (dx < 0) navigateAggMonth(+1);   // 左スワイプ=翌月
+          else        navigateAggMonth(-1);   // 右スワイプ=前月
+        }
+      }, { passive: true });
     }
 
     // ====== IME / Enter ガード ======
@@ -2438,6 +3280,8 @@
         state.calendarSelectedDate = todayISO();
         // 仕事タブ初期：今年
         state.workYear = new Date().getFullYear();
+        // 集計タブ初期：今月
+        state.aggMonth = todayISO().slice(0, 7);
         subscribeMasters();          // live
         subscribeTransactions();     // live
         bindEvents();
@@ -2446,6 +3290,7 @@
         resetForm();
         switchTab("input");
         renderCalendarTab();          // データ未着時でもグリッドだけは描く
+        renderAggTab();               // 同上：ヘッダだけは描く
         renderWorkTab();              // 同上：ヘッダだけは描く
       } catch (e) {
         console.error(e);
