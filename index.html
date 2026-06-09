@@ -55,13 +55,37 @@
       top: 0;
       z-index: 10;
     }
-    .tabs { display: flex; max-width: 600px; margin: 0 auto; }
-    .tab {
-      flex: 1; padding: 14px 6px; background: none; border: none;
-      font-size: 15px; cursor: pointer; color: var(--text-dim);
-      border-bottom: 3px solid transparent;
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 8px;
     }
-    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+    .tab {
+      background: var(--surface-elev);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 4px;
+      cursor: pointer;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      min-height: 60px;
+    }
+    .tab .tab-emoji { font-size: 22px; line-height: 1.2; }
+    .tab .tab-label { font-size: 12px; color: var(--text-dim); }
+    .tab.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 600;
+    }
+    .tab.active .tab-label { color: #fff; }
     main { max-width: 600px; margin: 0 auto; padding: 16px; }
     .tab-panel { display: none; }
     .tab-panel.active { display: block; }
@@ -703,14 +727,16 @@
 <body>
   <header>
     <div class="tabs">
-      <button type="button" class="tab active" data-tab="input">📥 入力</button>
-      <button type="button" class="tab" data-tab="list">📋 伝票一覧</button>
-      <button type="button" class="tab" data-tab="calendar">📅 カレンダー</button>
-      <button type="button" class="tab" data-tab="accounts">🏦 口座</button>
-      <button type="button" class="tab" data-tab="cards">💳 カード</button>
-      <button type="button" class="tab" data-tab="work">🏢 仕事</button>
-      <button type="button" class="tab" data-tab="agg">📊 集計</button>
-      <button type="button" class="tab" data-tab="settings">⚙️ 設定</button>
+      <!-- 行1：入力 / カレンダー / カード / 口座 -->
+      <button type="button" class="tab active" data-tab="input"><span class="tab-emoji">📥</span><span class="tab-label">入力</span></button>
+      <button type="button" class="tab" data-tab="calendar"><span class="tab-emoji">📅</span><span class="tab-label">カレンダー</span></button>
+      <button type="button" class="tab" data-tab="cards"><span class="tab-emoji">💳</span><span class="tab-label">カード</span></button>
+      <button type="button" class="tab" data-tab="accounts"><span class="tab-emoji">🏦</span><span class="tab-label">口座</span></button>
+      <!-- 行2：伝票一覧 / 仕事 / 集計 / 設定 -->
+      <button type="button" class="tab" data-tab="list"><span class="tab-emoji">📋</span><span class="tab-label">伝票一覧</span></button>
+      <button type="button" class="tab" data-tab="work"><span class="tab-emoji">🏢</span><span class="tab-label">仕事</span></button>
+      <button type="button" class="tab" data-tab="agg"><span class="tab-emoji">📊</span><span class="tab-label">集計</span></button>
+      <button type="button" class="tab" data-tab="settings"><span class="tab-emoji">⚙️</span><span class="tab-label">設定</span></button>
     </div>
   </header>
 
