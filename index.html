@@ -774,6 +774,13 @@
             <span>店・場所</span>
             <select id="f-store"></select>
           </label>
+          <div class="row">
+            <input id="f-store-new" type="text" placeholder="新しい店名（マスタに無いときだけ・任意）" maxlength="30">
+            <label class="row inline" style="margin-top: 6px; margin-bottom: 0;">
+              <input id="f-store-register" type="checkbox">
+              <span>店名登録（マスタに追加して伝票にもセット）</span>
+            </label>
+          </div>
           <div class="row inline">
             <input id="f-work-toggle" type="checkbox">
             <span>仕事</span>
@@ -1185,6 +1192,7 @@
           ...data,
           updated_at: serverTimestamp(),
         });
+        return null;
       } else {
         const items = state[colName] || [];
         const maxOrder = items.reduce((m, x) => Math.max(m, x.sort_order || 0), 0);
@@ -1195,7 +1203,8 @@
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
         };
-        await addDoc(collection(db, colName), payload);
+        const ref = await addDoc(collection(db, colName), payload);
+        return ref; // 入力フォームから新店追加→ payload.store_id にセットするため docRef を返す
       }
     }
     async function deleteMaster(colName, id) {
@@ -2597,6 +2606,11 @@
       $("#f-work-toggle").checked = false;
       $("#f-work-ratio").value = "0";
       $("#f-bad-toggle").checked = false;
+      // 新店登録欄もリセット
+      const nsEl = document.getElementById("f-store-new");
+      if (nsEl) nsEl.value = "";
+      const nsCb = document.getElementById("f-store-register");
+      if (nsCb) nsCb.checked = false;
       $("#detail-area").hidden = true;
       $("#detail-toggle").textContent = "詳細 ▼";
       $("#actions-new").hidden = false;
@@ -2739,6 +2753,18 @@
       const btn   = isNew ? $("#btn-save") : $("#btn-update");
       btn.disabled = true;
       try {
+        // 「店名登録」：支出フォームの新店欄に入力があり、チェックON のとき
+        // 設定タブと同一の saveMaster 経路で stores へ追加し、payload.store_id にも新 doc.id をセット
+        // OFF または空欄なら一切触らない（既存挙動完全維持）
+        if (payload.type === "expense") {
+          const newStoreEl = $("#f-store-new");
+          const regEl      = $("#f-store-register");
+          const newName    = (newStoreEl && newStoreEl.value || "").trim();
+          if (newName && regEl && regEl.checked) {
+            const ref = await saveMaster("stores", { name: newName, parent_id: null });
+            if (ref && ref.id) payload.store_id = ref.id;
+          }
+        }
         if (isNew) {
           await addDoc(collection(db, "transactions"), payload);
         } else {
