@@ -686,6 +686,61 @@
 
     .agg-empty { text-align: center; color: var(--text-muted); padding: 30px 16px; font-size: 14px; }
 
+    /* ====== 収入タブ（表示専用ビュー＋is_budget トグル）====== */
+    .income-header {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .income-month-label { color: var(--text-dim); font-size: 13px; margin-bottom: 8px; }
+    .income-total-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+    }
+    .income-total-row .label { color: var(--text-dim); font-size: 14px; }
+    .income-total-row .value { color: var(--income); font-size: 24px; font-weight: 700; }
+    .income-breakdown {
+      display: flex; gap: 16px; flex-wrap: wrap;
+      font-size: 13px; color: var(--text-dim);
+    }
+    .income-breakdown b { color: var(--text); font-weight: 700; margin-left: 2px; }
+    .income-empty { text-align: center; color: var(--text-muted); padding: 60px 16px; font-size: 16px; }
+
+    .income-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas:
+        "check info amount"
+        "check meta actions";
+      gap: 4px 10px;
+      align-items: center;
+    }
+    .income-check {
+      grid-area: check;
+      width: 26px; height: 26px;
+      flex-shrink: 0;
+      cursor: pointer;
+      accent-color: var(--income);
+    }
+    .income-check:disabled { cursor: progress; opacity: 0.6; }
+    .income-info { grid-area: info; }
+    .income-cat { color: var(--text); font-size: 15px; font-weight: 600; word-break: break-all; }
+    .income-meta { grid-area: meta; color: var(--text-dim); font-size: 12px; word-break: break-all; }
+    .income-amount { grid-area: amount; color: var(--income); font-size: 18px; font-weight: 700; text-align: right; white-space: nowrap; }
+    .income-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; }
+    .income-actions button {
+      background: var(--surface-elev); border: 1px solid var(--border); color: var(--text-dim);
+      padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    }
+    .income-actions button.del { color: var(--expense); border-color: var(--expense); }
+
     /* ====== モーダル共通 ====== */
     .overlay {
       position: fixed; inset: 0; background: var(--overlay-bg);
@@ -733,7 +788,7 @@
       <button type="button" class="tab" data-tab="cards"><span class="tab-emoji">💳</span><span class="tab-label">カード</span></button>
       <button type="button" class="tab" data-tab="accounts"><span class="tab-emoji">🏦</span><span class="tab-label">口座</span></button>
       <!-- 行2：伝票一覧 / 仕事 / 集計 / 設定 -->
-      <button type="button" class="tab" data-tab="list"><span class="tab-emoji">📋</span><span class="tab-label">伝票一覧</span></button>
+      <button type="button" class="tab" data-tab="income"><span class="tab-emoji">💰</span><span class="tab-label">収入</span></button>
       <button type="button" class="tab" data-tab="work"><span class="tab-emoji">🏢</span><span class="tab-label">仕事</span></button>
       <button type="button" class="tab" data-tab="agg"><span class="tab-emoji">📊</span><span class="tab-label">集計</span></button>
       <button type="button" class="tab" data-tab="settings"><span class="tab-emoji">⚙️</span><span class="tab-label">設定</span></button>
@@ -856,10 +911,27 @@
       </div>
     </section>
 
-    <!-- ========== 伝票一覧タブ ========== -->
+    <!-- ========== 伝票一覧タブ（収入タブに差し替え・コードは保全：タブから到達しなくなるだけ）========== -->
     <section id="tab-list" class="tab-panel">
       <div id="list-empty" hidden>まだ伝票がありません</div>
       <div id="list"></div>
+    </section>
+
+    <!-- ========== 収入タブ（表示専用ビュー＋is_budget トグル）========== -->
+    <section id="tab-income" class="tab-panel">
+      <div class="income-header">
+        <div class="income-month-label" id="income-month-label">—</div>
+        <div class="income-total-row">
+          <span class="label">今月の収入合計</span>
+          <span class="value" id="income-total-value">¥0</span>
+        </div>
+        <div class="income-breakdown">
+          <span class="bd-budget">✅ 翌月予算ぶん <b id="income-budget-value">¥0</b></span>
+          <span class="bd-current">◻️ 当月使うぶん <b id="income-current-value">¥0</b></span>
+        </div>
+      </div>
+      <div id="income-empty" class="income-empty" hidden>この月の収入はありません</div>
+      <div id="income-list"></div>
     </section>
 
     <!-- ========== カレンダータブ（表示専用ビュー）========== -->
@@ -1236,6 +1308,8 @@
           renderWorkTab();
           // 集計タブもマスタ名表示があるので再描画
           renderAggTab();
+          // 収入タブもカテゴリ名・入金先口座名を表示するので再描画
+          renderIncomeTab();
         }, (err) => {
           console.error(`${colName} onSnapshot error:`, err);
         });
@@ -1253,6 +1327,7 @@
         renderCalendarTab();
         renderWorkTab();
         renderAggTab();
+        renderIncomeTab();
       }, (err) => {
         console.error("transactions onSnapshot error:", err);
       });
@@ -1666,6 +1741,7 @@
       state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       state.calendarSelectedDate = null; // 月送り時は選択日リセット
       renderCalendarTab();
+      renderIncomeTab(); // 収入タブも同じ calendarMonth に追従
     }
 
     // ====== カレンダー描画 ======
@@ -2377,6 +2453,102 @@
       }).join("");
     }
 
+    // ====== 収入タブ（表示専用ビュー＋is_budget トグル）======
+    // 月は state.calendarMonth を流用（カレンダーの月送りに追従）。基準は決済日。
+    // is_budget が無い既存伝票は false 扱い（後方互換・読むだけ）。
+    function monthIncomeTransactions(yyyymm) {
+      return state.transactions.filter(tx =>
+        tx.type === "income" &&
+        tx.transaction_date &&
+        tx.transaction_date.slice(0, 7) === yyyymm
+      );
+    }
+    function renderIncomeTab() {
+      const root = $("#income-list");
+      const empty = $("#income-empty");
+      const label = $("#income-month-label");
+      if (!root || !label) return;
+      if (!state.calendarMonth) state.calendarMonth = todayISO().slice(0, 7);
+      const yyyymm = state.calendarMonth;
+      const [y, m] = yyyymm.split("-").map(Number);
+      label.textContent = `${y}年${String(m).padStart(2, "0")}月`;
+
+      const items = monthIncomeTransactions(yyyymm)
+        .slice()
+        .sort((a, b) => (b.transaction_date || "").localeCompare(a.transaction_date || "")); // 決済日 降順（伝票一覧と同流儀）
+
+      // サマリー（総額＝✅ぶん＋◻️ぶん）
+      let total = 0, budgetSum = 0, currentSum = 0;
+      for (const tx of items) {
+        const a = Number(tx.amount || 0);
+        total += a;
+        if (tx.is_budget === true) budgetSum += a;
+        else currentSum += a;
+      }
+      $("#income-total-value").textContent   = "¥" + total.toLocaleString();
+      $("#income-budget-value").textContent  = "¥" + budgetSum.toLocaleString();
+      $("#income-current-value").textContent = "¥" + currentSum.toLocaleString();
+
+      if (items.length === 0) {
+        root.innerHTML = "";
+        empty.hidden = false;
+        return;
+      }
+      empty.hidden = true;
+      root.innerHTML = items.map(tx => {
+        const checked = tx.is_budget === true;
+        const cat = state.categories.find(c => c.id === tx.category);
+        const catName = tx.category ? (cat ? cat.name : "?") : "カテゴリなし";
+        const cp = tx.counterparty ? `（${tx.counterparty}）` : "";
+        const acc = state.payment_sources.find(s => s.id === tx.to_account_id);
+        const accName = acc ? acc.name : "?";
+        const dt = tx.transaction_date || "";
+        const amt = Number(tx.amount || 0).toLocaleString();
+        return `
+          <div class="income-card" data-id="${escapeHtml(tx.id)}">
+            <input type="checkbox" class="income-check" data-income-toggle ${checked ? "checked" : ""} title="✅翌月予算ぶん / ◻️当月使うぶん">
+            <div class="income-info"><span class="income-cat">${escapeHtml(catName)}${escapeHtml(cp)}</span></div>
+            <div class="income-amount">+¥${escapeHtml(amt)}</div>
+            <div class="income-meta">${escapeHtml(dt)} ／ 入金先：${escapeHtml(accName)}</div>
+            <div class="income-actions">
+              <button type="button" data-income-edit>編集</button>
+              <button type="button" class="del" data-income-del>削除</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+    // ✅/◻️ トグル：楽観的更新（UI 先・updateDoc は is_budget 1フィールドのみ）。失敗時はロールバック。
+    async function toggleIncomeBudget(txId, checkboxEl) {
+      const tx = state.transactions.find(t => t.id === txId);
+      if (!tx) return;
+      const prev = tx.is_budget === true;
+      const next = !prev;
+      // 楽観的更新：in-memory も即書き換え→サマリーを先に再計算
+      tx.is_budget = next;
+      checkboxEl.checked = next;
+      checkboxEl.disabled = true; // 連打ガード
+      renderIncomeTab();
+      // renderIncomeTab で DOM を作り直すため、対象チェックボックスを取り直して disabled 維持
+      const liveCb = document.querySelector(`.income-card[data-id="${cssEscape(txId)}"] .income-check`);
+      if (liveCb) liveCb.disabled = true;
+      try {
+        await updateDoc(doc(db, "transactions", txId), { is_budget: next }); // is_budget の1フィールドのみ（他に触れない）
+        // 成功：onSnapshot が確定値で再描画する。disabled はその再描画で解除される
+      } catch (e) {
+        console.error(e);
+        // 失敗：ロールバック
+        tx.is_budget = prev;
+        alert("更新に失敗しました: " + (e?.message || e));
+        renderIncomeTab();
+      }
+    }
+    // CSS セレクタ用の最小エスケープ（Firestore のドキュメントIDは英数なので通常そのままでよいが保険）
+    function cssEscape(s) {
+      if (window.CSS && CSS.escape) return CSS.escape(s);
+      return String(s).replace(/["\\\]]/g, "\\$&");
+    }
+
     // ====== 一覧描画 ======
     function renderList() {
       const root = $("#list");
@@ -2708,6 +2880,13 @@
         base.category      = $("#f-category-inc").value || null;
         base.target_month  = targetMonth;
         base.payment_date  = transaction_date;
+        // is_budget：新規は false（◻️＝当月使う）。編集時は既存値を保全（収入タブのトグルを尊重）
+        if (state.currentEditId == null) {
+          base.is_budget = false;
+        } else {
+          const existing = state.transactions.find(t => t.id === state.currentEditId);
+          base.is_budget = !!(existing && existing.is_budget === true);
+        }
       } else if (type === "transfer") {
         base.from_account_id = $("#f-from-account").value || null;
         base.to_account_id   = $("#f-to-account-tr").value || null;
@@ -3174,6 +3353,26 @@
         const tx = state.transactions.find(t => t.id === id);
         if (tx) enterEditMode(tx);
       });
+      // 収入タブ：トグル（is_budget）／編集／削除（イベントデリゲーション）
+      $("#income-list").addEventListener("click", (e) => {
+        const card = e.target.closest(".income-card");
+        if (!card) return;
+        const id = card.dataset.id;
+        // ✅/◻️ トグル
+        const cb = e.target.closest("[data-income-toggle]");
+        if (cb) { toggleIncomeBudget(id, cb); return; }
+        // 編集 → 既存の編集フォーム
+        if (e.target.closest("[data-income-edit]")) {
+          const tx = state.transactions.find(t => t.id === id);
+          if (tx) enterEditMode(tx);
+          return;
+        }
+        // 削除 → 既存の削除モーダル（確認ポップ・デフォルトキャンセル）
+        if (e.target.closest("[data-income-del]")) {
+          openConfirmDelete({ kind: "tx", docId: id });
+          return;
+        }
+      });
       // カレンダータブ：前月／翌月ボタン
       $("#cal-prev").addEventListener("click", () => navigateMonth(-1));
       $("#cal-next").addEventListener("click", () => navigateMonth(+1));
@@ -3344,6 +3543,7 @@
         renderCalendarTab();          // データ未着時でもグリッドだけは描く
         renderAggTab();               // 同上：ヘッダだけは描く
         renderWorkTab();              // 同上：ヘッダだけは描く
+        renderIncomeTab();            // 同上：ヘッダだけは描く
       } catch (e) {
         console.error(e);
         document.body.insertAdjacentHTML(
