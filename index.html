@@ -347,6 +347,31 @@
     .cal-month-totals .total-value.exp { color: var(--expense); }
     .cal-month-totals .total-value.inc { color: var(--income); }
 
+    /* 予算ブロック（2階建て・カレンダー月送りに追従する純粋ビュー） */
+    .cal-budget {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+    }
+    .cal-budget .cal-budget-main {
+      font-size: 14px; line-height: 1.7;
+    }
+    .cal-budget .cal-budget-sub {
+      font-size: 13px; line-height: 1.6;
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .cal-budget .lbl { color: var(--text-dim); }
+    .cal-budget .op  { color: var(--text-dim); margin: 0 4px; }
+    .cal-budget .num { font-weight: 700; color: var(--text); }
+    .cal-budget .num.inc { color: var(--income); }
+    .cal-budget .num.exp { color: var(--expense); }
+    .cal-budget #cal-budget-remain.pos { color: var(--income); }
+    .cal-budget #cal-budget-remain.neg { color: var(--expense); }
+
     .cal-weekdays {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
@@ -951,6 +976,20 @@
             <div class="total-label-sm">今月収入</div>
             <div id="cal-month-income" class="total-value inc">¥0</div>
           </div>
+        </div>
+      </div>
+      <div id="cal-budget" class="cal-budget">
+        <div class="cal-budget-main">
+          <span class="lbl">今月使えるお金</span> <span id="cal-budget-available" class="num inc">¥0</span>
+          <span class="op">−</span>
+          <span class="lbl">今月支出</span> <span id="cal-budget-spent" class="num exp">¥0</span>
+          <span class="op">＝</span>
+          <span class="lbl">残り</span> <span id="cal-budget-remain" class="num">¥0</span>
+        </div>
+        <div class="cal-budget-sub">
+          <span class="lbl">前月予算</span> <span id="cal-budget-carry" class="num inc">¥0</span>
+          <span class="op">＋</span>
+          <span class="lbl">今月使う分</span> <span id="cal-budget-thismonth" class="num inc">¥0</span>
         </div>
       </div>
       <div class="cal-weekdays">
@@ -1759,6 +1798,23 @@
       $("#cal-month-expense").textContent = "¥" + monthSums.expense.toLocaleString();
       $("#cal-month-income").textContent  = "¥" + monthSums.income.toLocaleString();
 
+      // 予算ブロック（既存の共通集計を再利用・新エンジンを作らない）
+      // 前月（今月の1つ前）の YYYY-MM
+      const prevD = new Date(y, m - 2, 1);
+      const prevYm = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, "0")}`;
+      const carry      = monthIncomeByBudget(prevYm).budget;         // ①前月予算ぶん（前月 is_budget=true）
+      const thisMonth  = monthIncomeByBudget(state.calendarMonth).current; // ②今月使う分（今月 is_budget=false）
+      const available  = carry + thisMonth;                          // 今月使えるお金 ＝ ①＋②
+      const spent      = monthSums.expense;                          // 今月支出（振替除外・カレンダー月合計と同じ）
+      const remain     = available - spent;                          // 残り
+      $("#cal-budget-available").textContent = "¥" + available.toLocaleString();
+      $("#cal-budget-spent").textContent     = "¥" + spent.toLocaleString();
+      $("#cal-budget-carry").textContent     = "¥" + carry.toLocaleString();
+      $("#cal-budget-thismonth").textContent = "¥" + thisMonth.toLocaleString();
+      const remainEl = $("#cal-budget-remain");
+      remainEl.textContent = "¥" + remain.toLocaleString();
+      remainEl.className = "num " + (remain > 0 ? "pos" : remain < 0 ? "neg" : "");
+
       // グリッド組み立て
       const firstDay = new Date(y, m - 1, 1);
       const startWeekday = firstDay.getDay();             // 0=Sun, 6=Sat
@@ -2463,6 +2519,17 @@
         tx.transaction_date.slice(0, 7) === yyyymm
       );
     }
+    // その月の収入を is_budget で分けて合計（✅=budget / ◻️=current）。
+    // is_budget 未設定は false 扱い（=current）。収入タブとカレンダー予算ブロックで共有＝1本道。
+    function monthIncomeByBudget(yyyymm) {
+      let budget = 0, current = 0;
+      for (const tx of monthIncomeTransactions(yyyymm)) {
+        const a = Number(tx.amount || 0);
+        if (tx.is_budget === true) budget += a;
+        else current += a;
+      }
+      return { budget, current };
+    }
     function renderIncomeTab() {
       const root = $("#income-list");
       const empty = $("#income-empty");
@@ -2477,14 +2544,9 @@
         .slice()
         .sort((a, b) => (b.transaction_date || "").localeCompare(a.transaction_date || "")); // 決済日 降順（伝票一覧と同流儀）
 
-      // サマリー（総額＝✅ぶん＋◻️ぶん）
-      let total = 0, budgetSum = 0, currentSum = 0;
-      for (const tx of items) {
-        const a = Number(tx.amount || 0);
-        total += a;
-        if (tx.is_budget === true) budgetSum += a;
-        else currentSum += a;
-      }
+      // サマリー（総額＝✅ぶん＋◻️ぶん）。共通ヘルパ monthIncomeByBudget を使う（1本道）
+      const { budget: budgetSum, current: currentSum } = monthIncomeByBudget(yyyymm);
+      const total = budgetSum + currentSum;
       $("#income-total-value").textContent   = "¥" + total.toLocaleString();
       $("#income-budget-value").textContent  = "¥" + budgetSum.toLocaleString();
       $("#income-current-value").textContent = "¥" + currentSum.toLocaleString();
