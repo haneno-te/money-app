@@ -1929,7 +1929,7 @@
           const to   = state.payment_sources.find(s => s.id === tx.to_account_id);
           cat = `${from ? from.name : "?"} → ${to ? to.name : "?"}`;
         }
-        const meta = [store, cat].filter(Boolean).join(" / ");
+        const meta = [store, cat, tx.memo || ""].filter(Boolean).join(" / ");  // メモを行末に追加（フル表示・空なら区切りごと非表示）
         rows += `
           <div class="cal-detail-row" data-id="${escapeHtml(tx.id)}">
             <div class="cal-detail-type type-${escapeHtml(tx.type)}">${escapeHtml(typeLabel)}</div>
@@ -2643,13 +2643,14 @@
         } else catName = "カテゴリなし";
         const store = state.stores.find(s => s.id === tx.store_id);
         const storePart = store ? ` @${store.name}` : "";
+        const memoPart = tx.memo ? ` ／ ${tx.memo}` : "";  // 店名の後ろにメモ（フル表示・空なら区切りごと非表示）
         const dt = tx.transaction_date || "";
         const amt = Number(tx.amount || 0).toLocaleString();
         return `
           <div class="income-card" data-id="${escapeHtml(tx.id)}">
             <div class="income-info"><span class="income-cat">${escapeHtml(catName)}</span></div>
             <div class="income-amount neg">−¥${escapeHtml(amt)}</div>
-            <div class="income-meta">${escapeHtml(dt)} ／ ${escapeHtml(srcName)}${escapeHtml(storePart)}</div>
+            <div class="income-meta">${escapeHtml(dt)} ／ ${escapeHtml(srcName)}${escapeHtml(storePart)}${escapeHtml(memoPart)}</div>
             <div class="income-actions">
               <button type="button" data-bal-edit>編集</button>
               <button type="button" class="del" data-bal-del>削除</button>
