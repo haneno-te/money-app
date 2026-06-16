@@ -1432,7 +1432,7 @@
       for (const s of items) {
         const opt = document.createElement("option");
         opt.value = s.id;
-        const label = s.kind === "card" ? `カード:${s.name}` : `口座:${s.name}`;
+        const label = s.kind === "card" ? `カード:${s.name}` : `${s.name}`;  // 口座は接頭辞なし（カードは現行維持）
         opt.textContent = label;
         opt.dataset.kind = s.kind;
         opt.dataset.subtype = s.subtype || "";
@@ -2632,7 +2632,7 @@
       empty.hidden = true;
       root.innerHTML = items.map(tx => {
         const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
-        const srcName = src ? (src.kind === "card" ? `カード:${src.name}` : `口座:${src.name}`) : "?";
+        const srcName = src ? (src.kind === "card" ? `カード:${src.name}` : `${src.name}`) : "?";  // 口座は接頭辞なし（カードは現行維持）
         let catName;
         if (tx.subcategory_id) {
           const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
