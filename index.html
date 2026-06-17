@@ -3490,6 +3490,16 @@
         if (!cell) return;
         state.calendarSelectedDate = cell.dataset.date;
         renderCalendarTab();
+        // 明細描画直後に明細部へスムーズスクロール（タップした日のセルに留まらない）。
+        // sticky ヘッダ高さぶんオフセット。iPhone(Mobile Safari) でも効くよう window.scrollTo を使用。
+        requestAnimationFrame(() => {
+          const detail = $("#cal-detail");
+          if (!detail) return;
+          const header = document.querySelector("header");
+          const headerH = header ? header.getBoundingClientRect().height : 0;
+          const y = detail.getBoundingClientRect().top + window.pageYOffset - headerH - 8;
+          window.scrollTo({ top: y, behavior: "smooth" });
+        });
       });
       // カレンダー：左右スワイプで月送り（左=翌月／右=前月）
       // しきい値：|dx| > 50 かつ |dx| > 1.5 * |dy|
