@@ -136,6 +136,24 @@
     .calc-btn.clear { color: var(--text-dim); }
     .calc-btn.span2 { grid-column: span 2; }
     .calc-btn.span3 { grid-column: span 3; }
+    /* ====== 伝票内訳（支出フォーム）====== */
+    .bd-section { margin: 0 0 12px; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+    .bd-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .bd-head > span { font-size: 13px; color: var(--text-dim); }
+    .bd-remain b { color: var(--text); font-weight: 700; margin-left: 6px; }
+    .bd-remain.over b { color: var(--expense); }     /* 残額がマイナス（総額超過）＝赤で警告 */
+    .bd-row { border: 1px solid var(--border); border-radius: 8px; padding: 8px; margin-bottom: 8px; background: var(--surface-elev); }
+    .bd-line { display: flex; gap: 8px; align-items: center; }
+    .bd-row select, .bd-row input[type="text"] {
+      padding: 8px; font-size: 15px; border: 1px solid var(--border);
+      border-radius: 6px; background: var(--surface); color: var(--text);
+    }
+    .bd-sub { flex: 1; min-width: 0; }
+    .bd-amount { width: 110px; flex: none; text-align: right; }
+    .bd-del { flex: none; background: transparent; border: 1px solid var(--expense); color: var(--expense); border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+    .bd-sub2 { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+    .bd-bad { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; color: var(--text); white-space: nowrap; }
+    .bd-memo { flex: 1; min-width: 0; }
     .link {
       background: none; border: none; color: var(--primary); cursor: pointer;
       font-size: 14px; padding: 8px 0; margin: 8px 0;
@@ -901,6 +919,15 @@
 
         <!-- 支出 -->
         <div data-type-only="expense">
+          <!-- 内訳（フェーズ1：入力のみ。集計反映の配線は次パス）。ボタン/行は data属性＋デリゲーション -->
+          <div class="bd-section">
+            <div class="bd-head">
+              <span>内訳</span>
+              <span class="bd-remain" id="bd-remain"><span>未分類</span><b id="bd-remain-val">¥0</b></span>
+            </div>
+            <div id="bd-rows"></div>
+            <button type="button" id="bd-add" class="link">＋ 内訳を追加</button>
+          </div>
           <label class="row">
             <span>出どころ</span>
             <select id="f-payment-source"></select>
@@ -1453,6 +1480,7 @@
       renderAccountOnlySelect("f-from-account");
       renderAccountOnlySelect("f-to-account-tr");
       renderSubcategorySelect("f-subcategory");
+      bdRefreshSubcatOptions();   // 内訳行の細目 select もマスタ更新に追従
       renderCategorySelect("f-category-inc", "income");
       renderStoreSelect("f-store");
       // クレジット引落先口座の select は設定タブの追加欄にもあるので更新
@@ -2921,6 +2949,7 @@
       switchType("expense");
       $("#f-amount").focus();
       calcSyncFromField();   // 新規：金額は空（プレースホルダ0・空扱い）として電卓状態を初期化
+      bdClear();             // 内訳行を空に（新規は内訳なしから）
     }
 
     function enterEditMode(tx) {
@@ -2929,6 +2958,7 @@
       $("#f-date").value   = tx.transaction_date || todayISO();
       $("#f-amount").value = tx.amount ?? "";
       calcSyncFromField();   // 編集：既存金額を電卓状態に取り込む（0にしない）
+      bdPopulate(tx.type === "expense" ? (tx.breakdown || []) : []);   // 内訳を復元（支出のみ・現状は通常空）
       $("#f-memo").value   = tx.memo || "";
       $("#f-target-month").value = tx.target_month || "";
 
@@ -2985,6 +3015,7 @@
       if (state.currentEditId == null) base.created_at = serverTimestamp();
 
       if (type === "expense") {
+        base.breakdown = bdReadRows();   // 内訳（空なら [] ＝従来どおり）。1伝票1書き込みに含める。
         const srcId = $("#f-payment-source").value || null;
         base.payment_source_id = srcId;
         base.subcategory_id = $("#f-subcategory").value || null;   // "" → null（カテゴリなし）
@@ -3035,6 +3066,11 @@
         if (!p.payment_source_id) return "出どころを選択してください";
         if (p.work_ratio != null && (p.work_ratio < 0 || p.work_ratio > 100))
           return "按分率は0〜100で入力してください";
+        // 内訳合計が総額を超えないこと（残額が0未満になる入力は保存不可）
+        if (Array.isArray(p.breakdown) && p.breakdown.length) {
+          const bdSumAmt = p.breakdown.reduce((s, b) => s + Number(b.amount || 0), 0);
+          if (bdSumAmt > p.amount) return "内訳の合計が総額を超えています";
+        }
       }
       if (p.type === "income") {
         if (accCount === 0) return "設定タブで入金先の口座を追加してください";
@@ -3671,6 +3707,131 @@
       }, { passive: true });
     }
 
+    // ====== 伝票内訳（支出フォームのみ・フェーズ1＝入力のみ／集計配線は次パス）======
+    // breakdown 要素スキーマ：{ subcategory_id, amount, is_bad, memo }（親は細目から導出・別保存しない）
+    function bdTotal() { const el = document.getElementById("f-amount"); return Number((el ? el.value : 0) || 0); }
+    function bdRowEls() { return Array.from(document.querySelectorAll("#bd-rows [data-bd-row]")); }
+    function bdRowAmount(row) {
+      const el = row.querySelector("[data-bd-amount]");
+      return Number(((el ? el.value : "") + "").replace(/[^\d]/g, "") || 0);
+    }
+    function bdSum() { return bdRowEls().reduce((s, r) => s + bdRowAmount(r), 0); }
+    function bdMakeRow(data) {
+      data = data || {};
+      const row = document.createElement("div");
+      row.className = "bd-row";
+      row.setAttribute("data-bd-row", "");
+      // 細目select：メイン #f-subcategory の中身を複製（親 optgroup 付き＝親自動紐づけ）
+      const subHtml = (document.getElementById("f-subcategory") || {}).innerHTML || "";
+      row.innerHTML =
+        '<div class="bd-line">' +
+          '<select class="bd-sub" data-bd-sub>' + subHtml + '</select>' +
+          '<input class="bd-amount" type="text" inputmode="numeric" placeholder="0" data-bd-amount autocomplete="off">' +
+          '<button type="button" class="bd-del" data-bd-del>削除</button>' +
+        '</div>' +
+        '<div class="bd-sub2">' +
+          '<label class="bd-bad"><input type="checkbox" data-bd-bad> BAD</label>' +
+          '<input class="bd-memo" type="text" placeholder="メモ（任意）" maxlength="100" data-bd-memo autocomplete="off">' +
+        '</div>';
+      if (data.subcategory_id) {
+        const s = row.querySelector("[data-bd-sub]");
+        if (Array.from(s.options).some(o => o.value === data.subcategory_id)) s.value = data.subcategory_id;
+      }
+      if (data.amount != null && data.amount !== "") row.querySelector("[data-bd-amount]").value = String(data.amount);
+      if (data.is_bad) row.querySelector("[data-bd-bad]").checked = true;
+      if (data.memo) row.querySelector("[data-bd-memo]").value = data.memo;
+      return row;
+    }
+    function bdAddRow(data) {
+      const list = document.getElementById("bd-rows");
+      if (!list) return;
+      list.appendChild(bdMakeRow(data));
+      bdRecalc();
+    }
+    function bdClear() {
+      const list = document.getElementById("bd-rows");
+      if (list) list.innerHTML = "";
+      bdRecalc();
+    }
+    function bdPopulate(arr) {
+      bdClear();
+      if (Array.isArray(arr)) for (const it of arr) {
+        const list = document.getElementById("bd-rows");
+        if (list) list.appendChild(bdMakeRow(it));
+      }
+      bdRecalc();
+    }
+    // 行金額：全角→半角＋数字のみ＋残額上限でクランプ（総額を内訳合計が超えない）
+    function bdNormalizeAmountInput(row) {
+      const el = row.querySelector("[data-bd-amount]");
+      if (!el) return;
+      const v = calcToHalfWidth(el.value).replace(/[^\d]/g, "");
+      let n = Number(v || 0);
+      const others = bdSum() - bdRowAmount(row);
+      const max = Math.max(0, bdTotal() - others);
+      if (n > max) n = max;
+      el.value = (v === "" && n === 0) ? "" : String(n);
+    }
+    // 保存用：amount>0 の行だけを内訳として返す
+    function bdReadRows() {
+      const out = [];
+      for (const row of bdRowEls()) {
+        const amount = bdRowAmount(row);
+        if (amount <= 0) continue;
+        const subEl  = row.querySelector("[data-bd-sub]");
+        const memoEl = row.querySelector("[data-bd-memo]");
+        const badEl  = row.querySelector("[data-bd-bad]");
+        out.push({
+          subcategory_id: (subEl && subEl.value) ? subEl.value : null,
+          amount,
+          is_bad: !!(badEl && badEl.checked),
+          memo: (memoEl && memoEl.value.trim()) ? memoEl.value.trim() : null,
+        });
+      }
+      return out;
+    }
+    // 未分類（残額）＝総額 − 内訳合計。ライブ更新。マイナスは赤で警告（保存は validate でブロック）。
+    function bdRecalc() {
+      const remainEl = document.getElementById("bd-remain-val");
+      const wrap = document.getElementById("bd-remain");
+      if (!remainEl) return;
+      const remain = bdTotal() - bdSum();
+      remainEl.textContent = "¥" + remain.toLocaleString();
+      if (wrap) wrap.classList.toggle("over", remain < 0);
+    }
+    // マスタ更新時：各行の細目 options を貼り直す（選択値は保持）
+    function bdRefreshSubcatOptions() {
+      const subHtml = (document.getElementById("f-subcategory") || {}).innerHTML || "";
+      for (const row of bdRowEls()) {
+        const sel = row.querySelector("[data-bd-sub]");
+        if (!sel) continue;
+        const prev = sel.value;
+        sel.innerHTML = subHtml;
+        if (prev && Array.from(sel.options).some(o => o.value === prev)) sel.value = prev;
+      }
+    }
+    function bindBreakdown() {
+      const addBtn = document.getElementById("bd-add");
+      if (addBtn) addBtn.addEventListener("click", () => bdAddRow());
+      const list = document.getElementById("bd-rows");
+      if (!list) return;
+      // 行削除（イベントデリゲーション）
+      list.addEventListener("click", (e) => {
+        const del = e.target.closest("[data-bd-del]");
+        if (!del) return;
+        const row = del.closest("[data-bd-row]");
+        if (row) row.remove();
+        bdRecalc();
+      });
+      // 行金額入力：半角強制＋残額クランプ＋残額ライブ更新
+      list.addEventListener("input", (e) => {
+        const amt = e.target.closest("[data-bd-amount]");
+        if (!amt) return;
+        bdNormalizeAmountInput(amt.closest("[data-bd-row]"));
+        bdRecalc();
+      });
+    }
+
     // ====== 電卓（金額欄・開閉式・ライブ計算方式）======
     // 保存処理(buildPayload/saveTransaction)は無改変。金額欄は常に「確定済みの数値」だけを保持する。
     const CALC_OPEN_KEY = "moneyapp.calc.open";
@@ -3706,6 +3867,7 @@
       if (!el) return;
       const v = calcCurrentNumber();
       el.value = (v == null) ? "" : String(v);   // 空なら placeholder「0」が出る
+      bdRecalc();   // 総額の変化を内訳の残額表示へ反映
     }
     // 金額欄の値 → 計算状態（編集モード・Mac直接入力・パネル開時に同期）
     function calcSyncFromField() {
@@ -3796,6 +3958,7 @@
           const norm = calcToHalfWidth(amount.value).replace(/[^\d]/g, "");
           if (amount.value !== norm) amount.value = norm;
           calcSyncFromField();
+          bdRecalc();   // Mac直接入力での総額変化も残額へ反映
         });
         amount.addEventListener("keydown", (e) => {
           if (e.key !== "Enter") return;
@@ -3838,6 +4001,7 @@
         bindListDelegation();
         bindIMEGuards();
         bindCalculator();
+        bindBreakdown();
         resetForm();
         switchTab("input");
         renderCalendarTab();          // データ未着時でもグリッドだけは描く
