@@ -2173,17 +2173,68 @@
       if (!p) return "?";
       return p.kind === "card" ? `カード:${p.name}` : `口座:${p.name}`;
     }
+    // ===== 二層ルール（フェーズ2）：内訳ありは総額を付箋化し、内訳行＋未分類残額で計上 =====
+    // 細目id → 親キー（path a の axisKeyForTx と整合：sub 不明/親なしは __none__）
+    function parentKeyOfSub(subId) {
+      if (!subId) return "__none__";
+      const sub = state.subcategories.find(s => s.id === subId);
+      if (!sub) return "__none__";
+      return sub.parent_id || "__none__";
+    }
+    // カテゴリ次元の寄与：[{ subId, parentId, amount }]。Σ amount === tx.amount を常に保証。
+    function txCategoryContributions(tx) {
+      if (Array.isArray(tx.breakdown) && tx.breakdown.length) {
+        const out = [];
+        let sum = 0;
+        for (const line of tx.breakdown) {
+          const a = Number(line.amount || 0);
+          if (a <= 0) continue;
+          sum += a;
+          const subId = line.subcategory_id || null;
+          out.push({ subId, parentId: parentKeyOfSub(subId), amount: a });
+        }
+        const unalloc = Number(tx.amount || 0) - sum;   // 未分類残額（表示と同じ算出）
+        if (unalloc > 0) out.push({ subId: null, parentId: "__none__", amount: unalloc });
+        return out;
+      }
+      // path a：総額をそのまま subcategory_id（→親）へ
+      const subId = tx.subcategory_id || null;
+      return [{ subId, parentId: parentKeyOfSub(subId), amount: Number(tx.amount || 0) }];
+    }
+    // BAD次元の寄与：[{ subId, amount }]。未分類残額は BAD に含めない。
+    function txBadContributions(tx) {
+      if (Array.isArray(tx.breakdown) && tx.breakdown.length) {
+        const out = [];
+        for (const line of tx.breakdown) {
+          if (!line.is_bad) continue;
+          const a = Number(line.amount || 0);
+          if (a <= 0) continue;
+          out.push({ subId: line.subcategory_id || null, amount: a });
+        }
+        return out;
+      }
+      if (tx.is_bad) return [{ subId: tx.subcategory_id || null, amount: Number(tx.amount || 0) }];
+      return [];
+    }
     function monthAxisAggregate(yyyymm, axis) {
       const txs = monthExpenseTransactions(yyyymm);
       const buckets = new Map();
       let total = 0;
-      for (const tx of txs) {
-        const k = axisKeyForTx(tx, axis);
+      const add = (k, a, tx) => {
         if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0, txs: [] });
         const b = buckets.get(k);
-        const a = Number(tx.amount || 0);
-        b.amount += a; b.count++; b.txs.push(tx);
-        total += a;
+        b.amount += a; b.count++;
+        if (b.txs[b.txs.length - 1] !== tx) b.txs.push(tx);   // path-b の重複 push を防ぐ
+      };
+      for (const tx of txs) {
+        if (axis === "category") {
+          // カテゴリ軸のみ二層ルール（内訳行＋未分類残額）。store/source は総額のまま。
+          for (const c of txCategoryContributions(tx)) { add(c.parentId, c.amount, tx); total += c.amount; }
+        } else {
+          const k = axisKeyForTx(tx, axis);
+          const a = Number(tx.amount || 0);
+          add(k, a, tx); total += a;
+        }
       }
       const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
       items.forEach((it, i) => {
@@ -2194,25 +2245,17 @@
       return { items, total };
     }
     function categorySubBreakdown(yyyymm, parentId) {
-      // カテゴリ親軸でドリル：その親 category の細目別集計
-      // axisKeyForTx と整合：__none__ 親は「subcategory_id なし／sub が孤児／sub.parent_id 無し」を含む
-      const txs = monthExpenseTransactions(yyyymm).filter(tx => {
-        if (parentId === "__none__") {
-          if (!tx.subcategory_id) return true;
-          const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
-          if (!sub) return true;
-          return !sub.parent_id;
-        }
-        if (!tx.subcategory_id) return false;
-        const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
-        return sub && sub.parent_id === parentId;
-      });
+      // カテゴリ親軸でドリル：その親 category の細目別集計（二層ルール＝contribution で集計）
+      const txs = monthExpenseTransactions(yyyymm);
       const buckets = new Map();
       for (const tx of txs) {
-        const k = tx.subcategory_id || "__none__";
-        if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0, txs: [] });
-        const b = buckets.get(k);
-        b.amount += Number(tx.amount || 0); b.count++; b.txs.push(tx);
+        for (const c of txCategoryContributions(tx)) {
+          if (c.parentId !== parentId) continue;
+          const k = c.subId || "__none__";
+          if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0 });
+          const b = buckets.get(k);
+          b.amount += c.amount; b.count++;
+        }
       }
       const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
       items.forEach(it => {
@@ -2230,7 +2273,9 @@
       const txs = monthExpenseTransactions(yyyymm);
       if (!drill) return [];
       if (drill.kind === "subcategory") {
-        return txs.filter(tx => (tx.subcategory_id || "__none__") === drill.id);
+        // 二層ルール：path-b 伝票も内訳行の細目で末端に出す。未分類残額>0 は __none__ 末端に合流。
+        // （表示金額は総額のまま＝ナビ用途。小計は contribution バケット側の値を使用）
+        return txs.filter(tx => txCategoryContributions(tx).some(c => (c.subId || "__none__") === drill.id));
       }
       if (drill.kind === "store") {
         return txs.filter(tx => (tx.store_id || "__none__") === drill.id);
@@ -2261,33 +2306,31 @@
         if (!bucket) continue;
         const idx = months.indexOf(bucket);
         if (idx < 0) continue;
-        let matches = false;
-        if (seriesKind === "parent") {
-          if (!tx.subcategory_id) matches = (seriesId === "__none__");
-          else {
-            const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
-            if (!sub) matches = (seriesId === "__none__");
-            else matches = (sub.parent_id === seriesId);
-          }
-        } else if (seriesKind === "sub") {
-          matches = (tx.subcategory_id === seriesId);
+        // 二層ルール（カテゴリ次元）：contribution ごとに親/細目シリーズへ加算
+        for (const c of txCategoryContributions(tx)) {
+          const matches = (seriesKind === "parent")
+            ? (c.parentId === seriesId)
+            : (seriesKind === "sub" ? ((c.subId || "__none__") === seriesId) : false);
+          if (matches) sums[idx] += c.amount;
         }
-        if (matches) sums[idx] += Number(tx.amount || 0);
       }
       return { months, sums };
     }
     // ブロックC：BAD 月別集計
     function monthBadAggregate(yyyymm) {
       const all = monthExpenseTransactions(yyyymm);
-      const bad = all.filter(tx => tx.is_bad);
-      const totalAll = all.reduce((s, t) => s + Number(t.amount || 0), 0);
-      const totalBad = bad.reduce((s, t) => s + Number(t.amount || 0), 0);
+      const totalAll = all.reduce((s, t) => s + Number(t.amount || 0), 0);   // %分母は総額のまま
+      // 二層ルール：内訳ありは is_bad 行の line.amount を合算（未分類残額は含めない）、無しは is_bad の総額
+      let totalBad = 0;
       const buckets = new Map();
-      for (const tx of bad) {
-        const k = tx.subcategory_id || "__none__";
-        if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0 });
-        const b = buckets.get(k);
-        b.amount += Number(tx.amount || 0); b.count++;
+      for (const tx of all) {
+        for (const c of txBadContributions(tx)) {
+          totalBad += c.amount;
+          const k = c.subId || "__none__";
+          if (!buckets.has(k)) buckets.set(k, { key: k, amount: 0, count: 0 });
+          const b = buckets.get(k);
+          b.amount += c.amount; b.count++;
+        }
       }
       const items = Array.from(buckets.values()).sort((a, b) => b.amount - a.amount);
       items.forEach(it => {
