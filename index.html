@@ -820,6 +820,12 @@
       padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 13px;
     }
     .income-actions button.del { color: var(--expense); border-color: var(--expense); }
+    /* 収支タブ 支出行：日付アンカー＋細目主体（親は控えめ）＋BAD👿 */
+    .exp-date { display: block; color: var(--text); font-size: 13px; font-weight: 700; }
+    .exp-cat { display: block; }
+    .exp-sub { color: var(--text); font-size: 15px; font-weight: 600; word-break: break-all; }
+    .exp-parent { color: var(--text-dim); font-size: 12px; margin-left: 6px; }
+    .bad-mark { margin-left: 4px; }
 
     /* ====== モーダル共通 ====== */
     .overlay {
@@ -2001,10 +2007,11 @@
           cat = `${from ? from.name : "?"} → ${to ? to.name : "?"}`;
         }
         const meta = [store, cat, tx.memo || ""].filter(Boolean).join(" / ");  // メモを行末に追加（フル表示・空なら区切りごと非表示）
+        const badMark = (tx.type === "expense" && txIsBad(tx)) ? ` <span class="bad-mark" title="BAD">👿</span>` : "";   // 支出のBAD行に👿
         rows += `
           <div class="cal-detail-row" data-id="${escapeHtml(tx.id)}">
             <div class="cal-detail-type type-${escapeHtml(tx.type)}">${escapeHtml(typeLabel)}</div>
-            <div class="cal-detail-meta">${escapeHtml(meta)}</div>
+            <div class="cal-detail-meta">${escapeHtml(meta)}${badMark}</div>
             <div class="cal-detail-amount ${amtCls}">${sign}¥${escapeHtml(amt)}</div>
           </div>
         `;
@@ -2690,6 +2697,11 @@
         `;
       }).join("");
     }
+    // BAD判定（表示専用）：内訳があれば内訳行の is_bad を OR、無ければ伝票の is_bad
+    function txIsBad(tx) {
+      if (Array.isArray(tx.breakdown) && tx.breakdown.length) return tx.breakdown.some(b => b && b.is_bad);
+      return !!tx.is_bad;
+    }
     // 支出モード（旧 伝票一覧の支出 detail 組立を流用・同じ .income-card 骨格）
     function renderBalanceExpense(yyyymm, root) {
       const empty = $("#balance-empty");
@@ -2704,24 +2716,30 @@
       root.innerHTML = items.map(tx => {
         const src = state.payment_sources.find(s => s.id === tx.payment_source_id);
         const srcName = src ? (src.kind === "card" ? `カード:${src.name}` : `${src.name}`) : "?";  // 口座は接頭辞なし（カードは現行維持）
-        let catName;
+        // カテゴリ：細目を主・親を控えめに（親の毎行重複の冗長さを解消）
+        let subLabel = "カテゴリなし", parentLabel = "";
         if (tx.subcategory_id) {
           const sub = state.subcategories.find(s => s.id === tx.subcategory_id);
           if (sub) {
+            subLabel = sub.name;
             const parent = state.categories.find(c => c.id === sub.parent_id);
-            catName = parent ? `${parent.name} > ${sub.name}` : sub.name;
-          } else catName = "?";
-        } else catName = "カテゴリなし";
+            parentLabel = parent ? parent.name : "";
+          } else subLabel = "?";
+        }
         const store = state.stores.find(s => s.id === tx.store_id);
         const storePart = store ? ` @${store.name}` : "";
         const memoPart = tx.memo ? ` ／ ${tx.memo}` : "";  // 店名の後ろにメモ（フル表示・空なら区切りごと非表示）
         const dt = tx.transaction_date || "";
         const amt = Number(tx.amount || 0).toLocaleString();
+        const badMark = txIsBad(tx) ? ` <span class="bad-mark" title="BAD">👿</span>` : "";   // BAD行に👿（HTML文字）
         return `
-          <div class="income-card" data-id="${escapeHtml(tx.id)}">
-            <div class="income-info"><span class="income-cat">${escapeHtml(catName)}</span></div>
+          <div class="income-card expense-card" data-id="${escapeHtml(tx.id)}">
+            <div class="income-info">
+              <span class="exp-date">${escapeHtml(dt)}</span>
+              <span class="exp-cat"><span class="exp-sub">${escapeHtml(subLabel)}</span>${parentLabel ? `<span class="exp-parent">${escapeHtml(parentLabel)}</span>` : ""}${badMark}</span>
+            </div>
             <div class="income-amount neg">−¥${escapeHtml(amt)}</div>
-            <div class="income-meta">${escapeHtml(dt)} ／ ${escapeHtml(srcName)}${escapeHtml(storePart)}${escapeHtml(memoPart)}</div>
+            <div class="income-meta">${escapeHtml(srcName)}${escapeHtml(storePart)}${escapeHtml(memoPart)}</div>
             <div class="income-actions">
               <button type="button" data-bal-edit>編集</button>
               <button type="button" class="del" data-bal-del>削除</button>
