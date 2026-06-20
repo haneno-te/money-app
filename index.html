@@ -826,6 +826,30 @@
     .exp-sub { color: var(--text); font-size: 15px; font-weight: 600; word-break: break-all; }
     .exp-parent { color: var(--text-dim); font-size: 12px; margin-left: 6px; }
     .bad-mark { margin-left: 4px; }
+    /* 収支タブ 支出行：タップ展開の読み取りビュー（収支タブ限定・表示専用） */
+    .expense-card { display: block; }
+    .exp-summary {
+      display: grid; grid-template-columns: 1fr auto;
+      grid-template-areas: "info amount" "meta meta";
+      gap: 2px 10px; align-items: center; cursor: pointer;
+    }
+    .exp-detail { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); cursor: default; }
+    .exp-detail[hidden] { display: none; }
+    .exp-d-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 3px 0; }
+    .exp-d-row .lbl { color: var(--text-dim); white-space: nowrap; }
+    .exp-d-row .val { color: var(--text); text-align: right; word-break: break-all; }
+    .exp-bd-head { font-size: 12px; color: var(--text-dim); margin: 10px 0 6px; }
+    .exp-bd-row {
+      display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+      padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+      margin-bottom: 6px; background: var(--surface-elev);
+    }
+    .exp-bd-cat { color: var(--text); font-size: 13px; word-break: break-all; }
+    .exp-bd-amt { color: var(--text); font-size: 13px; font-weight: 600; text-align: right; white-space: nowrap; }
+    .exp-bd-memo { grid-column: 1 / -1; color: var(--text-dim); font-size: 12px; word-break: break-all; }
+    .exp-unalloc { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); padding: 4px 0 2px; }
+    .exp-unalloc b { color: var(--text); }
+    .exp-detail .income-actions { margin-top: 10px; }
 
     /* ====== モーダル共通 ====== */
     .overlay {
@@ -2732,17 +2756,51 @@
         const dt = tx.transaction_date || "";
         const amt = Number(tx.amount || 0).toLocaleString();
         const badMark = txIsBad(tx) ? ` <span class="bad-mark" title="BAD">👿</span>` : "";   // BAD行に👿（HTML文字）
+        // 展開ビュー（表示専用）：総額／出どころ／店／日付（＋メモ）
+        const storeName = store ? store.name : "—";
+        const detailRows = [
+          `<div class="exp-d-row"><span class="lbl">総額</span><span class="val">¥${escapeHtml(amt)}</span></div>`,
+          `<div class="exp-d-row"><span class="lbl">出どころ</span><span class="val">${escapeHtml(srcName)}</span></div>`,
+          `<div class="exp-d-row"><span class="lbl">店</span><span class="val">${escapeHtml(storeName)}</span></div>`,
+          `<div class="exp-d-row"><span class="lbl">日付</span><span class="val">${escapeHtml(dt)}</span></div>`,
+        ];
+        if (tx.memo) detailRows.push(`<div class="exp-d-row"><span class="lbl">メモ</span><span class="val">${escapeHtml(tx.memo)}</span></div>`);
+        // 内訳があれば各行＋自動算出の「未分類」（総額−Σ内訳・表示専用）
+        let bdHtml = "";
+        if (Array.isArray(tx.breakdown) && tx.breakdown.length) {
+          let bdSum = 0;
+          const bdRows = tx.breakdown.map(b => {
+            const a = Number(b.amount || 0); bdSum += a;
+            let catLabel = "カテゴリなし";
+            if (b.subcategory_id) {
+              const sub = state.subcategories.find(s => s.id === b.subcategory_id);
+              if (sub) { const parent = state.categories.find(c => c.id === sub.parent_id); catLabel = parent ? `${parent.name}：${sub.name}` : sub.name; }
+              else catLabel = "?";
+            }
+            const bMark = b.is_bad ? ` <span class="bad-mark" title="BAD">👿</span>` : "";
+            const bMemo = b.memo ? `<div class="exp-bd-memo">${escapeHtml(b.memo)}</div>` : "";
+            return `<div class="exp-bd-row"><span class="exp-bd-cat">${escapeHtml(catLabel)}${bMark}</span><span class="exp-bd-amt">¥${escapeHtml(a.toLocaleString())}</span>${bMemo}</div>`;
+          }).join("");
+          const unalloc = Number(tx.amount || 0) - bdSum;   // 未分類（表示用の計算値・保存しない）
+          bdHtml = `<div class="exp-bd-head">内訳</div>${bdRows}<div class="exp-unalloc"><span>未分類</span><b>¥${escapeHtml(unalloc.toLocaleString())}</b></div>`;
+        }
         return `
           <div class="income-card expense-card" data-id="${escapeHtml(tx.id)}">
-            <div class="income-info">
-              <span class="exp-date">${escapeHtml(dt)}</span>
-              <span class="exp-cat"><span class="exp-sub">${escapeHtml(subLabel)}</span>${parentLabel ? `<span class="exp-parent">${escapeHtml(parentLabel)}</span>` : ""}${badMark}</span>
+            <div class="exp-summary" data-exp-toggle>
+              <div class="income-info">
+                <span class="exp-date">${escapeHtml(dt)}</span>
+                <span class="exp-cat"><span class="exp-sub">${escapeHtml(subLabel)}</span>${parentLabel ? `<span class="exp-parent">${escapeHtml(parentLabel)}</span>` : ""}${badMark}</span>
+              </div>
+              <div class="income-amount neg">−¥${escapeHtml(amt)}</div>
+              <div class="income-meta">${escapeHtml(srcName)}${escapeHtml(storePart)}${escapeHtml(memoPart)}</div>
             </div>
-            <div class="income-amount neg">−¥${escapeHtml(amt)}</div>
-            <div class="income-meta">${escapeHtml(srcName)}${escapeHtml(storePart)}${escapeHtml(memoPart)}</div>
-            <div class="income-actions">
-              <button type="button" data-bal-edit>編集</button>
-              <button type="button" class="del" data-bal-del>削除</button>
+            <div class="exp-detail" hidden>
+              ${detailRows.join("")}
+              ${bdHtml}
+              <div class="income-actions">
+                <button type="button" data-bal-edit>編集</button>
+                <button type="button" class="del" data-bal-del>削除</button>
+              </div>
             </div>
           </div>
         `;
@@ -3545,6 +3603,12 @@
         // 削除 → 既存の削除モーダル（確認ポップ・デフォルトキャンセル）
         if (e.target.closest("[data-bal-del]")) {
           openConfirmDelete({ kind: "tx", docId: id });
+          return;
+        }
+        // 支出カードのサマリ部タップ → 読み取りビューを開閉（収支タブ限定・収入/カレンダー等は無改変）
+        if (card.classList.contains("expense-card") && e.target.closest("[data-exp-toggle]")) {
+          const detail = card.querySelector(".exp-detail");
+          if (detail) detail.hidden = !detail.hidden;
           return;
         }
       });
